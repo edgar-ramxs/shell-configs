@@ -1,1 +1,1 @@
-# dotfiles-shells
+# shell-configs
