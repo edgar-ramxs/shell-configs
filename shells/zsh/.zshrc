@@ -16,8 +16,6 @@ fi
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
 export HISTFILE="$HOME/.cache/zsh_history"
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
 
 plugins=(
   git
@@ -61,5 +59,7 @@ zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p
 zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
