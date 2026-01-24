@@ -1,0 +1,487 @@
+#!/usr/bin/env bash
+# -*- coding: utf-8 -*-
+
+#     ███████╗██╗  ██╗███████╗██╗     ██╗      ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗
+#     ██╔════╝██║  ██║██╔════╝██║     ██║     ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝
+#     ███████╗███████║█████╗  ██║     ██║     ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║
+#     ╚════██║██╔══██║██╔══╝  ██║     ██║     ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║
+#     ███████║██║  ██║███████╗███████╗███████╗╚██████╗╚██████╔╝██║ ╚████║███████╗██║╚██████╗
+#     ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚═╝ ╚═════╝
+
+set -euo pipefail
+
+# ============================================================================
+# VARIABLES Y CONFIGURACIÓN
+# ============================================================================
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPO_DIR="${SCRIPT_DIR%/*/*/*}"  # Directorio raíz del repo
+readonly CONFIG_DIR="${REPO_DIR}/config"
+readonly BACKUP_BASE_DIR="${HOME}/.config/shell/backups"
+readonly ARCHIVE_EXT="tar.gz"
+readonly TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# ============================================================================
+# IMPORTAR LIBRERÍA COMPARTIDA
+# ============================================================================
+
+# shellcheck disable=SC1091
+if ! source "${CONFIG_DIR}/lib.sh"; then
+    echo "Error: No se pudo cargar la librería compartida"
+    exit 1
+fi
+
+# ============================================================================
+# FUNCIONES AUXILIARES
+# ============================================================================
+
+show_help() {
+    cat << EOF
+${BOLD}${CYAN}Shell Config Manager${RESET}
+
+${BOLD}Uso:${RESET}
+  $(basename "$0") [COMANDO] [OPCIONES]
+
+${BOLD}Comandos:${RESET}
+  backup      Crear backup de configuraciones actuales
+  restore     Restaurar configuraciones desde un backup
+  copy        Copiar archivos del repo a ~/.config/shell/ (con backup)
+  list        Listar todos los backups disponibles
+  remove      Eliminar un backup específico
+  clean       Eliminar backups antiguos
+  push        Hacer commit y push de cambios al repositorio
+  status      Ver estado del repositorio
+  help        Mostrar esta ayuda
+
+${BOLD}Ejemplos:${RESET}
+  $(basename "$0") backup                    # Crear backup inmediato
+  $(basename "$0") restore 20260124_101530   # Restaurar backup
+  $(basename "$0") copy                      # Copiar archivos del repo
+  $(basename "$0") list                      # Ver todos los backups
+  $(basename "$0") push "mensaje del commit" # Hacer push al repo
+  $(basename "$0") clean --older-than 30    # Eliminar backups > 30 días
+
+EOF
+}
+
+# Función personalizada de limpieza para este script
+cleanup_temp_files() {
+    [[ -n "${TEMP_LOG:-}" ]] && rm -f "$TEMP_LOG"
+}
+
+# Configurar trap personalizado
+trap cleanup_temp_files EXIT
+
+# ============================================================================
+# OPERACIONES DE BACKUP
+# ============================================================================
+
+backup_shell_configs() {
+    message -title "CREANDO BACKUP DE CONFIGURACIONES"
+    
+    ensure_dir "$BACKUP_BASE_DIR" || return 1
+    
+    local backup_name="shell-backup_${TIMESTAMP}"
+    local backup_dir="${BACKUP_BASE_DIR}/${backup_name}"
+    local archive_file="${BACKUP_BASE_DIR}/${backup_name}.${ARCHIVE_EXT}"
+    
+    ensure_dir "$backup_dir/user-configs" || return 1
+    ensure_dir "$backup_dir/metadata" || return 1
+    
+    message -subtitle "Recopilando archivos..."
+    
+    local items_to_backup=(
+        "$HOME/.bashrc"
+        "$HOME/.zshrc"
+        "$HOME/.bash_logout"
+        "$HOME/.p10k.zsh"
+        "$HOME/.config/shell"
+        "$HOME/.local/bin"
+        "$HOME/.cache/bash_history"
+        "$HOME/.cache/zsh_history"
+    )
+    
+    local total_backed=0
+    
+    for item in "${items_to_backup[@]}"; do
+        if [[ -e "$item" ]]; then
+            local rel_path="${item#$HOME/}"
+            local dest_dir="${backup_dir}/user-configs/$(dirname "$rel_path")"
+            ensure_dir "$dest_dir" || continue
+            
+            if [[ -d "$item" ]]; then
+                cp -r "$item" "$dest_dir/" && \
+                    message -success "✓ Backup: $rel_path/" && \
+                    ((total_backed++)) || \
+                    message -warning "⚠ Error al hacer backup de $rel_path"
+            else
+                cp "$item" "$dest_dir/" && \
+                    message -success "✓ Backup: $rel_path" && \
+                    ((total_backed++)) || \
+                    message -warning "⚠ Error al hacer backup de $rel_path"
+            fi
+        fi
+    done
+    
+    cat > "${backup_dir}/metadata/info.txt" << EOF
+Backup creado: $(date '+%Y-%m-%d %H:%M:%S')
+Sistema: $(uname -s)
+Distro: $(lsb_release -ds 2>/dev/null || echo "Unknown")
+Shell: $SHELL
+Hostname: $(hostname)
+Usuario: $(whoami)
+Total items: $total_backed
+EOF
+    
+    cat > "${backup_dir}/README.txt" << 'EOF'
+SHELL-CONFIGS BACKUP
+
+Este directorio contiene un backup de configuraciones de shell.
+
+Contenido:
+  • user-configs/    - Copia de archivos de configuración del usuario
+  • metadata/        - Información sobre el backup
+
+Para restaurar este backup, use:
+  shell-config restore <backup_timestamp>
+EOF
+    
+    message -subtitle "Comprimiendo backup..."
+    tar czf "$archive_file" -C "$BACKUP_BASE_DIR" "$backup_name" && \
+        message -success "Archivo creado: $(basename "$archive_file")" || \
+        { message -error "Error al comprimir backup"; return 1; }
+    
+    rm -rf "$backup_dir"
+    echo "$TIMESTAMP" > "${BACKUP_BASE_DIR}/.last-backup"
+    
+    message -success "Backup completado exitosamente"
+    message -info "Ubicación: $archive_file"
+    echo ""
+}
+
+# ============================================================================
+# OPERACIONES DE COPIA
+# ============================================================================
+
+copy_repo_files() {
+    message -title "COPIANDO ARCHIVOS DEL REPOSITORIO"
+    
+    if [[ ! -d "$REPO_DIR" ]]; then
+        message -error "Directorio del repositorio no encontrado: $REPO_DIR"
+        return 1
+    fi
+    
+    message -info "Repositorio: $REPO_DIR"
+    
+    # Crear backup primero
+    message -subtitle "Creando backup de seguridad..."
+    backup_shell_configs || message -warning "Advertencia: No se pudo crear backup"
+    
+    message -subtitle "Copiando archivos..."
+    
+    # Copiar configuraciones
+    local config_dir="$REPO_DIR/config"
+    if [[ -d "$config_dir" ]]; then
+        ensure_dir "$HOME/.config/shell" || return 1
+        
+        for file in "$config_dir"/{aliases,exports,functions}; do
+            if [[ -f "$file" ]]; then
+                local filename=$(basename "$file")
+                cp "$file" "$HOME/.config/shell/$filename"
+                chmod 644 "$HOME/.config/shell/$filename"
+                message -success "Copiado: ~/.config/shell/$filename"
+            fi
+        done
+    fi
+    
+    # Copiar scripts
+    local bin_dir="$REPO_DIR/local/bin"
+    if [[ -d "$bin_dir" ]]; then
+        ensure_dir "$HOME/.local/bin" || return 1
+        
+        for script in "$bin_dir"/*; do
+            if [[ -f "$script" ]]; then
+                local scriptname=$(basename "$script")
+                cp "$script" "$HOME/.local/bin/$scriptname"
+                chmod +x "$HOME/.local/bin/$scriptname"
+                message -success "Copiado: ~/.local/bin/$scriptname"
+            fi
+        done
+    fi
+    
+    # Copiar archivos de shell si existen
+    local shells_dir="$REPO_DIR/shells"
+    if [[ -d "$shells_dir" ]]; then
+        message -subtitle "Actualizando archivos de shell..."
+        
+        if [[ -f "$shells_dir/bash/.bashrc" ]]; then
+            cp "$shells_dir/bash/.bashrc" "$HOME/.bashrc"
+            message -success "Actualizado: ~/.bashrc"
+        fi
+        
+        if [[ -f "$shells_dir/zsh/.zshrc" ]]; then
+            cp "$shells_dir/zsh/.zshrc" "$HOME/.zshrc"
+            message -success "Actualizado: ~/.zshrc"
+        fi
+    fi
+    
+    message -success "Archivos copiados correctamente"
+    echo ""
+    message -warning "Ejecute 'source ~/.bashrc' o 'source ~/.zshrc' para aplicar cambios"
+}
+
+# ============================================================================
+# OPERACIONES DE RESTORE
+# ============================================================================
+
+list_backups() {
+    message -title "BACKUPS DISPONIBLES"
+    
+    if [[ ! -d "$BACKUP_BASE_DIR" ]] || [[ -z "$(ls -A "$BACKUP_BASE_DIR" 2>/dev/null | grep -v "^\.")" ]]; then
+        message -warning "No hay backups disponibles"
+        return 1
+    fi
+    
+    echo ""
+    local count=0
+    for archive in "$BACKUP_BASE_DIR"/shell-backup_*.${ARCHIVE_EXT}; do
+        if [[ -f "$archive" ]]; then
+            ((count++))
+            local timestamp=$(basename "$archive" | sed "s/shell-backup_//;s/.${ARCHIVE_EXT}//")
+            local size=$(du -h "$archive" | cut -f1)
+            local date=$(date -d "${timestamp:0:4}-${timestamp:4:2}-${timestamp:6:2}" '+%d/%m/%Y' 2>/dev/null || echo "?")
+            local time="${timestamp:9:2}:${timestamp:11:2}:${timestamp:13:2}"
+            
+            printf "${CYAN}%2d)${RESET} ${BOLD}%s${RESET}  [%s | %s]  Tamaño: %s\n" \
+                "$count" "$timestamp" "$date" "$time" "$size"
+        fi
+    done
+    
+    echo ""
+}
+
+restore_backup() {
+    local backup_id="$1"
+    
+    if [[ -z "$backup_id" ]]; then
+        message -error "Debe especificar un backup para restaurar"
+        list_backups
+        return 1
+    fi
+    
+    local archive_file="${BACKUP_BASE_DIR}/shell-backup_${backup_id}.${ARCHIVE_EXT}"
+    
+    if [[ ! -f "$archive_file" ]]; then
+        message -error "Backup no encontrado: $backup_id"
+        list_backups
+        return 1
+    fi
+    
+    message -title "RESTAURANDO BACKUP: $backup_id"
+    
+    message -subtitle "Creando backup de seguridad..."
+    backup_shell_configs || message -warning "Advertencia: No se pudo crear backup de seguridad"
+    
+    message -subtitle "Extrayendo archivo..."
+    local temp_extract=$(mktemp -d)
+    tar xzf "$archive_file" -C "$temp_extract" || \
+        { message -error "Error al extraer backup"; return 1; }
+    
+    message -subtitle "Restaurando archivos..."
+    local backup_dir="${temp_extract}/shell-backup_${backup_id}"
+    
+    if [[ ! -d "$backup_dir/user-configs" ]]; then
+        message -error "Estructura de backup inválida"
+        rm -rf "$temp_extract"
+        return 1
+    fi
+    
+    cp -r "$backup_dir/user-configs"/* "$HOME/" && \
+        message -success "Archivos restaurados" || \
+        { message -error "Error al restaurar archivos"; rm -rf "$temp_extract"; return 1; }
+    
+    if [[ -f "$backup_dir/metadata/info.txt" ]]; then
+        message -subtitle "Información del backup:"
+        cat "$backup_dir/metadata/info.txt" | sed 's/^/  /'
+    fi
+    
+    rm -rf "$temp_extract"
+    
+    message -success "Restauración completada"
+    echo ""
+    message -warning "Importante: Ejecute 'source ~/.bashrc' o 'source ~/.zshrc' para aplicar cambios"
+    echo ""
+}
+
+# ============================================================================
+# MANTENIMIENTO DE BACKUPS
+# ============================================================================
+
+remove_backup() {
+    local backup_id="$1"
+    
+    if [[ -z "$backup_id" ]]; then
+        message -error "Debe especificar un backup para eliminar"
+        list_backups
+        return 1
+    fi
+    
+    local archive_file="${BACKUP_BASE_DIR}/shell-backup_${backup_id}.${ARCHIVE_EXT}"
+    
+    if [[ ! -f "$archive_file" ]]; then
+        message -error "Backup no encontrado: $backup_id"
+        return 1
+    fi
+    
+    message -warning "¿Está seguro de que desea eliminar el backup $backup_id?"
+    read -p "Escriba 'sí' para confirmar: " -r
+    
+    if [[ "$REPLY" == "sí" ]]; then
+        rm -f "$archive_file" && \
+            message -success "Backup eliminado: $backup_id" || \
+            message -error "Error al eliminar backup"
+    else
+        message -info "Operación cancelada"
+    fi
+}
+
+clean_old_backups() {
+    local days="${1:-30}"
+    
+    if ! [[ "$days" =~ ^[0-9]+$ ]]; then
+        message -error "El número de días debe ser un entero"
+        return 1
+    fi
+    
+    message -title "LIMPIANDO BACKUPS ANTIGUOS"
+    message -info "Buscando backups con más de $days días..."
+    
+    if [[ ! -d "$BACKUP_BASE_DIR" ]]; then
+        message -info "No hay directorio de backups"
+        return 0
+    fi
+    
+    local count=0
+    while IFS= read -r archive; do
+        if [[ -f "$archive" ]]; then
+            rm -f "$archive"
+            local backup_name=$(basename "$archive")
+            message -success "Eliminado: $backup_name"
+            ((count++))
+        fi
+    done < <(find "$BACKUP_BASE_DIR" -name "shell-backup_*.${ARCHIVE_EXT}" -mtime "+$days" 2>/dev/null)
+    
+    if [[ $count -eq 0 ]]; then
+        message -info "No hay backups antiguos para eliminar"
+    else
+        message -success "Se eliminaron $count backups antiguos"
+    fi
+}
+
+# ============================================================================
+# OPERACIONES DE GIT
+# ============================================================================
+
+push_changes() {
+    local commit_msg="$1"
+    
+    if [[ -z "$commit_msg" ]]; then
+        message -error "Debe proporcionar un mensaje de commit"
+        return 1
+    fi
+    
+    if [[ ! -d "$REPO_DIR/.git" ]]; then
+        message -error "El repositorio no es un repositorio git"
+        return 1
+    fi
+    
+    message -title "ACTUALIZANDO REPOSITORIO"
+    message -info "Repositorio: $REPO_DIR"
+    
+    cd "$REPO_DIR"
+    
+    message -subtitle "Verificando cambios..."
+    if ! git status --porcelain | grep -q .; then
+        message -info "No hay cambios para hacer commit"
+        return 0
+    fi
+    
+    message -subtitle "Agregando cambios..."
+    git add -A && message -success "Cambios agregados"
+    
+    message -subtitle "Haciendo commit..."
+    git commit -m "$commit_msg" && message -success "Commit realizado: $commit_msg"
+    
+    message -subtitle "Haciendo push..."
+    git push && message -success "Push completado"
+    
+    message -success "Repositorio actualizado correctamente"
+    echo ""
+}
+
+show_status() {
+    message -title "ESTADO DEL REPOSITORIO"
+    
+    if [[ ! -d "$REPO_DIR/.git" ]]; then
+        message -error "El repositorio no es un repositorio git"
+        return 1
+    fi
+    
+    cd "$REPO_DIR"
+    
+    message -info "Repositorio: $REPO_DIR"
+    echo ""
+    
+    git status
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+main() {
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        backup)
+            backup_shell_configs
+            ;;
+        restore)
+            restore_backup "$@"
+            ;;
+        copy)
+            copy_repo_files
+            ;;
+        list)
+            list_backups
+            ;;
+        remove)
+            remove_backup "$@"
+            ;;
+        clean)
+            local days=30
+            if [[ "$1" == "--older-than" ]]; then
+                days="$2"
+            fi
+            clean_old_backups "$days"
+            ;;
+        push)
+            push_changes "$@"
+            ;;
+        status)
+            show_status
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            message -error "Comando desconocido: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

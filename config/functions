@@ -7,6 +7,34 @@
 #  ██╗██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
 #  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 
+# ============================================================================
+# LAZY LOADING - Cargar funciones pesadas bajo demanda
+# ============================================================================
+#
+# Las siguientes funciones se cargan solo cuando se ejecutan por primera vez,
+# mejorando significativamente el tiempo de inicio del shell.
+
+if [[ -n "${BASH_VERSION:-}" ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
+    # Importar función lazy_load_function si está disponible
+    if command -v lazy_load_function &>/dev/null || declare -f lazy_load_function &>/dev/null; then
+        # Las funciones pesadas se cargarán bajo demanda
+        lazy_load_function "compile-pls" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "fzf-lovely" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "extract-ports" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "tell-me-a-joke" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "pray-for-me" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "cheat" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "wttr" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "crypto-rate" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "initialize-git-repo" "$HOME/.config/shell/functions-heavy"
+        lazy_load_function "calc" "$HOME/.config/shell/functions-heavy"
+    fi
+fi
+
+# ============================================================================
+# FUNCIONES LIGERAS - Cargadas directamente en el inicio
+# ============================================================================
+
 function hydra() {
     clear &&
     echo \
@@ -131,7 +159,7 @@ function open-file() {
     fi
 }
 
-function create-venv() {
+function venv-create() {
     local dir_name=$(basename "$(pwd)")
     local env_name=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)
     env_name=".$env_name-env"

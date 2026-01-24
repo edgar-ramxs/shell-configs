@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+
+# ============================================================================
+# CHECK-DEPS - VALIDADOR INTELIGENTE DE DEPENDENCIAS
+# ============================================================================
+#
+# Script para verificar, reportar y opcionalmente instalar dependencias
+# que requiere el proyecto shell-configs
+#
+# Uso:
+#   check-deps                    # Solo verificar
+#   check-deps --install          # Verificar e instalar automáticamente
+#   check-deps --report           # Generar reporte detallado
+#   check-deps --check-missing    # Solo mostrar lo que falta
+#   check-deps --help             # Mostrar esta ayuda
+
+set -euo pipefail
+
+# ============================================================================
+# VARIABLES GLOBALES Y CONFIGURACIÓN
+# ============================================================================
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+readonly DEPS_FILE="${REPO_DIR}/dependencies.toml"
+readonly CONFIG_DIR="${REPO_DIR}/config"
+readonly TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# Importar librería compartida
+if [[ ! -f "$CONFIG_DIR/lib.sh" ]]; then
+    echo "Error: Librería compartida no encontrada: $CONFIG_DIR/lib.sh"
+    exit 1
+fi
+# shellcheck disable=SC1091
+source "$CONFIG_DIR/lib.sh"
+
+# Estado global
+INSTALL_MODE=false
+REPORT_MODE=false
+CHECK_MISSING_ONLY=false
+DISTRO=""
+MISSING_DEPS=()
+FOUND_DEPS=()
+
+# ============================================================================
+# DETECCIÓN DEL SISTEMA
+# ============================================================================
+
+detect_distro() {
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        DISTRO="${ID:-unknown}"
+    else
+        DISTRO="unknown"
+    fi
+}
+
+get_package_manager() {
+    case "$DISTRO" in
+        ubuntu|debian) echo "apt" ;;
+        arch|manjaro) echo "pacman" ;;
+        fedora|rhel|centos) echo "dnf" ;;
+        *) echo "unknown" ;;
+    esac
+}
+
+# ============================================================================
+# FUNCIONES DE VALIDACIÓN
+# ============================================================================
+
+parse_deps_file() {
+    if [[ ! -f "$DEPS_FILE" ]]; then
+        message -error "Archivo de dependencias no encontrado: $DEPS_FILE"
+        return 1
+    fi
+    
+    message -subtitle "Leyendo dependencias desde: $DEPS_FILE"
+}
+
+check_linux_deps() {
+    local deps=()
+    local in_section=false
+    
+    # Parsear la sección [linux] de dependencies.toml
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\[linux\]$ ]]; then
+            in_section=true
+            continue
+        fi
+        
+        if [[ "$line" =~ ^\[ ]] && [[ "$in_section" == true ]]; then
+            break
+        fi
+        
+        if [[ "$in_section" == true ]]; then
+            [[ -z "$line" ]] && continue
+            [[ "$line" =~ ^# ]] && continue
+            
+            local pkg="${line%%#*}"
+            pkg="$(echo "$pkg" | xargs)"
+            [[ -z "$pkg" ]] && continue
+            deps+=("$pkg")
+        fi
+    done < "$DEPS_FILE"
+    
+    # Validar cada dependencia
+    for dep in "${deps[@]}"; do
+        if check_command_exists "$dep"; then
+            FOUND_DEPS+=("$dep")
+            message -success "✓ $dep"
+        else
+            MISSING_DEPS+=("$dep")
+            message -warning "✗ $dep"
+        fi
+    done
+}
+
+# ============================================================================
+# INSTALACIÓN AUTOMÁTICA
+# ============================================================================
+
+install_apt() {
+    message -subtitle "Usando apt (Debian/Ubuntu)..."
+    
+    # Mapeo de nombres de dependencias a paquetes apt
+    declare -A pkg_map=(
+        ["git"]="git"
+        ["curl"]="curl"
+        ["jq"]="jq"
+        ["lsd"]="lsd"
+        ["bat"]="bat"
+        ["fzf"]="fzf"
+        ["ripgrep"]="ripgrep"
+        ["fd-find"]="fd-find"
+        ["exa"]="exa"
+        ["tldr"]="tldr"
+    )
+    
+    # Actualizar lista de paquetes
+    message -info "Actualizando lista de paquetes..."
+    sudo apt update -qq || message -warning "Error al actualizar apt"
+    
+    local failed=0
+    for dep in "${MISSING_DEPS[@]}"; do
+        local pkg="${pkg_map[$dep]:-$dep}"
+        message -subtitle "Instalando: $dep (paquete: $pkg)..."
+        
+        if sudo apt install -y "$pkg" 2>&1 | grep -q "unable to locate"; then
+            message -error "Paquete no encontrado: $pkg"
+            ((failed++))
+        elif sudo apt install -y "$pkg"; then
+            message -success "Instalado: $dep"
+        else
+            message -error "Error al instalar: $dep"
+            ((failed++))
+        fi
+    done
+    
+    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+}
+
+install_pacman() {
+    message -subtitle "Usando pacman (Arch Linux)..."
+    
+    local failed=0
+    for dep in "${MISSING_DEPS[@]}"; do
+        message -subtitle "Instalando: $dep..."
+        
+        if sudo pacman -S --noconfirm "$dep"; then
+            message -success "Instalado: $dep"
+        else
+            message -error "Error al instalar: $dep"
+            ((failed++))
+        fi
+    done
+    
+    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+}
+
+install_dnf() {
+    message -subtitle "Usando dnf (Fedora/RHEL)..."
+    
+    local failed=0
+    for dep in "${MISSING_DEPS[@]}"; do
+        message -subtitle "Instalando: $dep..."
+        
+        if sudo dnf install -y "$dep"; then
+            message -success "Instalado: $dep"
+        else
+            message -error "Error al instalar: $dep"
+            ((failed++))
+        fi
+    done
+    
+    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+}
+
+install_missing_deps() {
+    if [[ ${#MISSING_DEPS[@]} -eq 0 ]]; then
+        message -success "Todas las dependencias están instaladas ✓"
+        return 0
+    fi
+    
+    message -title "INSTALANDO DEPENDENCIAS FALTANTES"
+    message -warning "Se requieren permisos de sudo"
+    
+    local pkg_manager=$(get_package_manager)
+    
+    case "$pkg_manager" in
+        apt)
+            install_apt || return 1
+            ;;
+        pacman)
+            install_pacman || return 1
+            ;;
+        dnf)
+            install_dnf || return 1
+            ;;
+        *)
+            message -error "Gestor de paquetes desconocido para: $DISTRO"
+            message -warning "Por favor instale manualmente: ${MISSING_DEPS[*]}"
+            return 1
+            ;;
+    esac
+}
+
+# ============================================================================
+# GENERACIÓN DE REPORTES
+# ============================================================================
+
+generate_report() {
+    message -title "REPORTE DE DEPENDENCIAS"
+    
+    echo
+    message -subtitle "Sistema Detectado:"
+    echo "  Distribución: $DISTRO"
+    echo "  Gestor de paquetes: $(get_package_manager)"
+    echo "  Shell: $SHELL"
+    
+    echo
+    message -subtitle "Dependencias Encontradas (${#FOUND_DEPS[@]}):"
+    if [[ ${#FOUND_DEPS[@]} -gt 0 ]]; then
+        for dep in "${FOUND_DEPS[@]}"; do
+            echo "  ✓ $dep"
+        done
+    else
+        echo "  (ninguna)"
+    fi
+    
+    echo
+    message -subtitle "Dependencias Faltantes (${#MISSING_DEPS[@]}):"
+    if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+        for dep in "${MISSING_DEPS[@]}"; do
+            echo "  ✗ $dep"
+        done
+        echo
+        message -info "Para instalar, ejecuta: check-deps --install"
+    else
+        message -success "¡Todas las dependencias están instaladas!"
+    fi
+    
+    echo
+}
+
+show_help() {
+    cat << EOF
+${BOLD}${CYAN}CHECK-DEPS - Validador de Dependencias${RESET}
+
+${BOLD}Descripción:${RESET}
+  Verifica, reporta e instala automáticamente las dependencias
+  requeridas por el proyecto shell-configs
+
+${BOLD}Uso:${RESET}
+  check-deps [OPCIÓN]
+
+${BOLD}Opciones:${RESET}
+  (ninguna)              Verificar dependencias e mostrar estado
+  --install              Instalar automáticamente dependencias faltantes
+  --report               Generar reporte detallado
+  --check-missing        Solo listar dependencias que faltan
+  --help                 Mostrar esta ayuda
+
+${BOLD}Ejemplos:${RESET}
+  check-deps                    # Verificar estado
+  check-deps --install          # Instalar lo que falta
+  check-deps --report           # Ver reporte completo
+  check-deps --check-missing    # Ver solo lo que falta
+
+EOF
+}
+
+# ============================================================================
+# FUNCIÓN PRINCIPAL
+# ============================================================================
+
+main() {
+    message -title "VALIDADOR DE DEPENDENCIAS"
+    
+    # Parsear argumentos
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --install) INSTALL_MODE=true; shift ;;
+            --report) REPORT_MODE=true; shift ;;
+            --check-missing) CHECK_MISSING_ONLY=true; shift ;;
+            --help|-h) show_help; exit 0 ;;
+            *) message -error "Opción desconocida: $1"; show_help; exit 1 ;;
+        esac
+    done
+    
+    # Detectar distro
+    detect_distro
+    message -info "Distribución: $DISTRO ($(get_package_manager))"
+    
+    # Parsear dependencias
+    parse_deps_file || exit 1
+    
+    # Verificar dependencias
+    message -title "VERIFICANDO DEPENDENCIAS"
+    check_linux_deps
+    
+    # Mostrar resumen
+    echo
+    message -subtitle "Resumen:"
+    echo "  Encontradas: ${#FOUND_DEPS[@]}"
+    echo "  Faltantes:   ${#MISSING_DEPS[@]}"
+    
+    # Acciones según modo
+    if [[ "$CHECK_MISSING_ONLY" == true ]]; then
+        echo
+        if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+            echo "Faltantes:"
+            for dep in "${MISSING_DEPS[@]}"; do
+                echo "  - $dep"
+            done
+        else
+            message -success "Todas las dependencias están presentes ✓"
+        fi
+    elif [[ "$REPORT_MODE" == true ]]; then
+        generate_report
+    elif [[ "$INSTALL_MODE" == true ]]; then
+        install_missing_deps || exit 1
+        echo
+        message -success "Verificación post-instalación..."
+        MISSING_DEPS=()
+        FOUND_DEPS=()
+        check_linux_deps
+        echo
+        if [[ ${#MISSING_DEPS[@]} -eq 0 ]]; then
+            message -success "¡Todas las dependencias instaladas correctamente! ✓"
+        else
+            message -warning "Algunas dependencias no se pudieron instalar automáticamente"
+            message -info "Instale manualmente: ${MISSING_DEPS[*]}"
+            exit 1
+        fi
+    else
+        # Modo normal: solo mostrar estado
+        echo
+        if [[ ${#MISSING_DEPS[@]} -eq 0 ]]; then
+            message -success "✓ Sistema listo para usar (todas las dependencias presentes)"
+        else
+            message -warning "⚠ Sistema incompleto"
+            message -info "Dependencias faltantes: ${MISSING_DEPS[*]}"
+            message -info "Ejecuta: check-deps --install"
+        fi
+    fi
+    
+    echo
+}
+
+main "$@"

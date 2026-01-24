@@ -1,0 +1,51 @@
+# ============================================================================
+# Shell Config - Dependencias y Paquetes
+# ============================================================================
+# Formato: TOML simplificado para fácil parsing
+# Descripción: Define todas las dependencias necesarias para shell-configs
+# 
+# Secciones:
+#   [linux]     - Paquetes del gestor de paquetes del SO
+#   [python]    - Paquetes de pip
+#   [rust]      - Paquetes de cargo
+#   [node]      - Paquetes de npm/yarn
+#   [go]        - Paquetes de go get
+#   [repositories] - Repositorios git a clonar
+#
+# ============================================================================
+
+# Paquetes de sistemas Linux (apt, pacman, dnf)
+# Instalador automático: Detecta distro y usa el gestor correcto
+[linux]
+git       # Version control
+curl      # URL transfer tool
+jq        # JSON processor
+lsd       # Modern ls replacement
+bat       # Better cat with syntax highlighting
+fzf       # Fuzzy finder
+ripgrep   # Fast grep alternative
+fd-find   # User-friendly find
+exa       # Modern ls with git support
+tldr      # Simplified man pages
+
+# Paquetes Python (pip)
+[python]
+pip       # Python package manager
+pipx      # Python application installer
+
+# Paquetes Rust (cargo)
+[rust]
+cargo     # Rust package manager
+
+# Paquetes Node.js (npm/yarn)
+[node]
+npm       # Node package manager
+
+# Paquetes Go (go install)
+[go]
+
+# Repositorios git a clonar
+[repositories]
+https://github.com/ohmyzsh/ohmyzsh.git            # oh-my-zsh para Zsh
+https://github.com/ohmybash/oh-my-bash.git        # oh-my-bash para Bash
+https://github.com/romkatv/powerlevel10k.git      # powerlevel10k para Zsh
