@@ -1,53 +1,175 @@
-# Documentación de Referencia - Shell-Configs
+# REFERENCE.md - Referencia Rápida de Comandos
 
-Guía consolidada con índice, referencia rápida y plan de mejoras.
+**Cheat sheet para usuarios finales**
+
+---
+
+## ⚡ Instalación
+
+```bash
+git clone https://github.com/tu-usuario/shell-configs.git
+cd shell-configs
+bash setup.sh
+source ~/.bashrc    # o ~/.zshrc
+```
 
 ---
 
-## 📑 Índice Completo de Documentación
+## 🛠️ Comandos Principales
 
-### 🚀 Para Empezar
+### Gestión de Configuraciones
 
-1. **[README.md](../README.md)** - Punto de entrada principal
-   - Inicio rápido
-   - Características principales
-   - Instalación básica
+```bash
+# Ver ayuda
+shell-config help
 
-2. **[PHASES_RESULTS.md](PHASES_RESULTS.md)** - Resultados de todas las fases
-   - Fase 1: Automatización de instalación
-   - Fase 2: Optimización de estructura
-   - Fase 4: Gestión de dependencias
-   - Fase 5: Mejoras de rendimiento
+# Crear backup
+shell-config backup
 
-### 📋 Guías Completas
+# Restaurar desde backup
+shell-config restore <TIMESTAMP>
 
-3. **[AGENTS.md](AGENTS.md)** - Guía exhaustiva del proyecto
-   - Arquitectura completa
-   - Procesos detallados
-   - Roadmap para agentes AI
+# Listar backups disponibles
+shell-config list
 
-4. **[CODE_REVIEW.md](CODE_REVIEW.md)** - Análisis de código
-   - 22 problemas encontrados
-   - Correcciones aplicadas
-   - Validación final
+# Eliminar un backup
+shell-config remove <TIMESTAMP>
 
-5. **[PROJECT_STATUS.md](PROJECT_STATUS.md)** - Estado y roadmap
-   - Métricas actuales
-   - Phases 6-9 planeadas
-   - Estimaciones de esfuerzo
+# Limpiar backups antiguos (>30 días)
+shell-config clean
 
-### 🛠️ Recursos Prácticos
+# Copiar configuraciones del repo
+shell-config copy
 
-6. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Solución de problemas
-   - 30+ soluciones comunes
-   - Diagnósticos rápidos
+# Mostrar estado de Git
+shell-config status
 
-7. **[REFERENCE.md](REFERENCE.md)** - Este archivo
-   - Índice de documentación
-   - Referencia rápida de comandos
-   - Plan de mejoras futuras
+# Hacer commit y push
+shell-config push
+```
+
+### Verificar Dependencias
+
+```bash
+# Ver estado
+check-deps
+
+# Verificar e instalar faltantes
+check-deps --install
+
+# Generar reporte
+check-deps --report
+
+# Solo mostrar lo que falta
+check-deps --check-missing
+```
+
+### Herramientas Adicionales
+
+```bash
+# Descargar fuentes
+download-fonts
+
+# Descargar videos (yt-dlp)
+ytdlp_downloader <URL>
+
+# Ver directorio actual
+show-dirs
+
+# Mostrar información del sistema
+zfetch
+
+# Mostrar archivo del sistema
+sysfetch
+```
 
 ---
+
+## 🔄 Flujos Comunes
+
+### Después de Instalar
+
+```bash
+1. ./setup.sh              # Ejecutar instalador
+2. source ~/.bashrc        # Recargar shell (o ~/.zshrc)
+3. check-deps              # Verificar que todo está bien
+4. shell-config list       # Ver que se creó backup
+```
+
+### Actualizar Configuraciones
+
+```bash
+1. Edita config/aliases, config/exports, etc.
+2. Ejecuta: source ~/.bashrc (o ~/.zshrc)
+3. Crea backup: shell-config backup
+4. Prueba cambios
+5. Si no te gusta: shell-config restore <TIMESTAMP>
+```
+
+### Hacer Cambios Persistentes
+
+```bash
+1. Modifica archivos en el repo
+2. Copia a tu home: shell-config copy
+3. Prueba en tu shell
+4. Haz commit: git add . && git commit -m "cambios"
+5. Push: git push
+```
+
+---
+
+## 📁 Directorios Importantes
+
+```bash
+# Configuraciones del usuario
+~/.config/shell/
+  ├── aliases        # Atajos de comando
+  ├── exports        # Variables de entorno
+  ├── functions      # Funciones disponibles
+  ├── functions-heavy # Funciones (lazy-loaded)
+  └── backups/       # Backups automáticos
+
+# Scripts binarios
+~/.local/bin/
+  ├── shell-config   # Gestor de configuraciones
+  ├── check-deps     # Validador de dependencias
+  └── ... otros scripts
+
+# Shells instalados
+~/.local/share/
+  ├── oh-my-zsh/      # Para Zsh
+  ├── oh-my-bash/     # Para Bash
+  └── powerlevel10k/  # Tema Zsh
+```
+
+---
+
+## 🐛 Solución Rápida de Problemas
+
+| Problema | Solución |
+|----------|----------|
+| Shell no se recarga | `source ~/.bashrc` o `source ~/.zshrc` |
+| Comando no encontrado | `check-deps --install` |
+| PATH incorrecto | `echo $PATH` para verificar, edita `config/exports` |
+| Quiero restaurar | `shell-config restore <TIMESTAMP>` |
+| Funciones no se cargan | `source ~/.bashrc` o reinicia terminal |
+
+**Para más problemas:** Ver `docs/TROUBLESHOOTING.md`
+
+---
+
+## 🔗 Documentación
+
+- **README.md** - Guía de inicio rápido
+- **docs/ARCHITECTURE.md** - Estructura técnica
+- **docs/PROCESSES.md** - Cómo funcionan los procesos
+- **docs/TROUBLESHOOTING.md** - Problemas y soluciones
+- **docs/PROJECT_STATUS.md** - Roadmap futuro
+- **docs/AGENTS.md** - Para agentes IA
+
+---
+
+**Última Actualización:** 25 enero 2026
 
 ## 🚀 Quick Start (2 minutos)
 
