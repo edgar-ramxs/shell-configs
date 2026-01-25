@@ -169,6 +169,19 @@ if [[ -d "$HOME/.docker/bin" ]]; then
     _PATH_COMPONENTS+=("$HOME/.docker/bin")
 fi
 
+# Agregar Visual Studio Code (opencode) si está disponible
+if [[ -d "$HOME/.opencode/bin" ]]; then
+    _PATH_COMPONENTS+=("$HOME/.opencode/bin")
+fi
+
+# Agregar GitHub Copilot CLI si está disponible
+if [[ -d "$HOME/.config/Code/User/globalStorage/github.copilot-chat" ]]; then
+    _PATH_COMPONENTS+=(
+        "$HOME/.config/Code/User/globalStorage/github.copilot-chat/debugCommand"
+        "$HOME/.config/Code/User/globalStorage/github.copilot-chat/copilotCli"
+    )
+fi
+
 # Construir PATH final sin duplicados
 export PATH=$(IFS=':' ; echo "${_PATH_COMPONENTS[*]}:$PATH" | tr ':' '\n' | awk '!a[$0]++' | paste -sd: -)
 
@@ -195,6 +208,23 @@ if command -v zsh &>/dev/null; then
 fi
 
 # ============================================================================
+# DIRECTORIOS DE HERRAMIENTAS ESPECÍFICAS
+# ============================================================================
+
+# Node Version Manager (NVM)
+export NVM_DIR="$HOME/.nvm"
+
+# Bun package manager
+export BUN_INSTALL="$HOME/.bun"
+
+# PyEnv
+export PYENV_ROOT="$HOME/.pyenv"
+
+# Rustup
+export RUSTUP_HOME="$HOME/.rustup"
+export CARGO_HOME="$HOME/.cargo"
+
+# ============================================================================
 # CONFIGURACIÓN AVANZADA (COMENTADA - DESCOMENTA SI NECESITAS)
 # ============================================================================
 
@@ -202,3 +232,5 @@ fi
 # export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 
 # Para mantener datos de herramientas en XDG:
+# export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+# export CARGO_HOME="$XDG_DATA_HOME/cargo"

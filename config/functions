@@ -8,30 +8,6 @@
 #  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
 
 # ============================================================================
-# LAZY LOADING - Cargar funciones pesadas bajo demanda
-# ============================================================================
-#
-# Las siguientes funciones se cargan solo cuando se ejecutan por primera vez,
-# mejorando significativamente el tiempo de inicio del shell.
-
-if [[ -n "${BASH_VERSION:-}" ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-    # Importar función lazy_load_function si está disponible
-    if command -v lazy_load_function &>/dev/null || declare -f lazy_load_function &>/dev/null; then
-        # Las funciones pesadas se cargarán bajo demanda
-        lazy_load_function "compile-pls" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "fzf-lovely" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "extract-ports" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "tell-me-a-joke" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "pray-for-me" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "cheat" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "wttr" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "crypto-rate" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "initialize-git-repo" "$HOME/.config/shell/functions-heavy"
-        lazy_load_function "calc" "$HOME/.config/shell/functions-heavy"
-    fi
-fi
-
-# ============================================================================
 # FUNCIONES LIGERAS - Cargadas directamente en el inicio
 # ============================================================================
 
@@ -119,28 +95,50 @@ function cdl () { cd "$@" && ls; }
 
 function cmkdir() {
     if [ -z "$1" ]; then
-        message -warning "Usage: cmk <directory-name>"
+        message -warning "Usage: cmkdir <directory-name>"
         return 1
     fi
     mkdir "$1"
     cd "$1"
-    
 }
 
 function rmk() {
-    scrub -p dod $1
-    shred -zun 10 -v $1
+    if [ -z "$1" ] || [ ! -e "$1" ]; then
+        message -error "Usage: rmk <file|directory>"
+        return 1
+    fi
+    # Usar shred como método estándar para sobrescribir archivos
+    if command -v shred &>/dev/null; then
+        shred -zun 10 -v "$1"
+    else
+        message -warning "shred no está disponible, usando rm normal"
+        rm -rf "$1"
+    fi
 }
 
 function extract-ports() {
-	ports="$(cat $1 | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')"
-	ip_address="$(cat $1 | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
-	echo -e "\n[*] Extracting information...\n" > extractPorts.tmp
-	echo -e "\t[*] IP Address: $ip_address"  >> extractPorts.tmp
-	echo -e "\t[*] Open ports: $ports\n"  >> extractPorts.tmp
-	echo $ports | tr -d '\n' | xclip -sel clip
-	echo -e "[*] Ports copied to clipboard\n"  >> extractPorts.tmp
-	cat extractPorts.tmp; rm extractPorts.tmp
+    if [ -z "$1" ] || [ ! -f "$1" ]; then
+        message -error "Usage: extract-ports <nmap-file>"
+        return 1
+    fi
+    
+    ports="$(cat "$1" | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')"
+    ip_address="$(cat "$1" | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
+    
+    echo -e "\n[*] Extracting information...\n" > extractPorts.tmp
+    echo -e "\t[*] IP Address: $ip_address" >> extractPorts.tmp
+    echo -e "\t[*] Open ports: $ports\n" >> extractPorts.tmp
+    
+    # Copiar a clipboard solo si xclip está disponible
+    if command -v xclip &>/dev/null; then
+        echo $ports | tr -d '\n' | xclip -sel clip
+        echo -e "[*] Ports copied to clipboard\n" >> extractPorts.tmp
+    else
+        message -warning "xclip no está disponible (puertos no copiados)"
+    fi
+    
+    cat extractPorts.tmp
+    rm -f extractPorts.tmp
 }
 
 function open-file() {
@@ -185,12 +183,27 @@ function get-venv-name() {
 }
 
 function settarget(){
-    if [ $# -eq 1 ]; then
-        echo $1 > ~/.config/rofi/htb/mark-name
-        elif [ $# -gt 2 ]; then
-        echo "settarget [IP] [NAME] | settarget [IP]"
+    local htb_config_dir="$HOME/.config/rofi/htb"
+    local target_file="$htb_config_dir/mark-name"
+    
+    # Validar que la estructura de directorios existe
+    if [[ ! -d "$htb_config_dir" ]]; then
+        message -warning "Directorio $htb_config_dir no existe. Creando estructura..."
+        mkdir -p "$htb_config_dir" || {
+            message -error "No se pudo crear $htb_config_dir"
+            return 1
+        }
+    fi
+    
+    if [[ $# -eq 1 ]]; then
+        echo "$1" > "$target_file"
+        message -success "Target asignado a: $1"
+    elif [[ $# -eq 2 ]]; then
+        echo "$1 $2" > "$target_file"
+        message -success "Target asignado a: $1 ($2)"
     else
-        echo $1 $2 > ~/.config/rofi/htb/mark-name
+        message -error "Uso: settarget [IP] [NAME] | settarget [IP]"
+        return 1
     fi
 }
 
@@ -242,50 +255,41 @@ function compile-pls() {
     local extension="${filename##*.}"
     local name_without_ext="${filename%.*}"
     
-    command_exists() {
-        command -v "$1" >/dev/null 2>&1
-    }
-    
     case "$extension" in
         "kt")
-            if command_exists kotlinc && command_exists java; then
-                kotlinc "$filename" -include-runtime -d "${name_without_ext}.jar" && java -jar "${name_without_ext}.jar"
-            else
+            if ! command -v kotlinc &>/dev/null || ! command -v java &>/dev/null; then
                 message -cancel "Error: Kotlin o Java no están instalados."
                 return 1
             fi
+            kotlinc "$filename" -include-runtime -d "${name_without_ext}.jar" && java -jar "${name_without_ext}.jar"
         ;;
         "java")
-            if command_exists javac && command_exists java; then
-                javac "$filename" && java "$name_without_ext"
-            else
+            if ! command -v javac &>/dev/null || ! command -v java &>/dev/null; then
                 message -cancel "Error: Java no está instalado."
                 return 1
             fi
+            javac "$filename" && java "$name_without_ext"
         ;;
         "cpp")
-            if command_exists g++; then
-                g++ "$filename" -o "$name_without_ext" && "./$name_without_ext"
-            else
+            if ! command -v g++ &>/dev/null; then
                 message -cancel "Error: g++ no está instalado."
                 return 1
             fi
+            g++ "$filename" -o "$name_without_ext" && "./$name_without_ext"
         ;;
         "c")
-            if command_exists gcc; then
-                gcc "$filename" -o "$name_without_ext" && "./$name_without_ext"
-            else
+            if ! command -v gcc &>/dev/null; then
                 message -cancel "Error: gcc no está instalado."
                 return 1
             fi
+            gcc "$filename" -o "$name_without_ext" && "./$name_without_ext"
         ;;
         "pas")
-            if command_exists fpc; then
-                fpc "$filename" && "./$name_without_ext"
-            else
+            if ! command -v fpc &>/dev/null; then
                 message -cancel "Error: Free Pascal Compiler (fpc) no está instalado."
                 return 1
             fi
+            fpc "$filename" && "./$name_without_ext"
         ;;
         *)
             message -cancel "Error: Extensión de archivo no admitida: .$extension"
@@ -295,7 +299,7 @@ function compile-pls() {
 }
 
 
-function initialize_git_repo() {
+function initialize-git-repo() {
     local repo_name=""
     local readme_message="Proyecto inicializado"
     local remote_url=""
@@ -308,13 +312,13 @@ function initialize_git_repo() {
             m) readme_message="$OPTARG" ;;  # Mensaje para el README.md (opcional)
             r) remote_url="$OPTARG" ;;      # URL del repositorio remoto (opcional)
             b) branch="$OPTARG" ;;          # Rama a la que se hará push (opcional)
-            \?) echo "Uso: initialize_git_repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
+            \?) message -error "Uso: initialize-git-repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
             return 1 ;;
         esac
     done
     
     if [[ -z "$repo_name" ]]; then
-        echo "Error: Debes proporcionar un nombre para el repositorio con -n."
+        message -error "Error: Debes proporcionar un nombre para el repositorio con -n."
         return 1
     fi
 
@@ -331,11 +335,11 @@ function initialize_git_repo() {
     if [[ -n "$remote_url" ]]; then
         git remote add origin "$remote_url"
         git branch -M "$branch"
-        git push -u origin "$branch"
+        git push -u origin "$branch" || message -warning "No se pudo hacer push al repositorio remoto"
     fi
     
-    cd $dir
-    echo "Repositorio '$repo_name' inicializado correctamente."
+    cd "$dir"
+    message -success "Repositorio '$repo_name' inicializado correctamente."
 }
 
 function tell-me-a-joke() {
@@ -365,4 +369,69 @@ function crypto-rate() {
 function calc () {
     local operation=$1
     echo "$operation" | bc -ql
+}
+
+function gen_gitignore() {
+    local API_BASE="https://www.toptal.com/developers/gitignore/api"
+    local LIST_URL="${API_BASE}/list"
+    local OUTFILE=".gitignore"
+
+    # Si no se pasan parámetros
+    if [[ $# -eq 0 ]]; then
+        echo "Uso: gen_gitignore <templates...>"
+        echo "Ej: gen_gitignore python,node,linux"
+        echo "Opciones:"
+        echo "  --list   Listar templates disponibles"
+        return 0
+    fi
+
+    # Si piden listar
+    if [[ "$1" == "--list" ]]; then
+        if command -v curl &>/dev/null; then
+            curl -sL "$LIST_URL"
+        elif command -v wget &>/dev/null; then
+            wget -qO- "$LIST_URL"
+        else
+            echo "Instala curl o wget para usar esta función."
+            return 1
+        fi
+        return 0
+    fi
+
+    # Construir URL de petición
+    local templates="$*"
+    local url="${API_BASE}/${templates}"
+
+    # Obtener el contenido
+    local content
+    if command -v curl &>/dev/null; then
+        content=$(curl -sL "$url")
+    elif command -v wget &>/dev/null; then
+        content=$(wget -qO- "$url")
+    else
+        echo "Instala curl o wget para usar esta función."
+        return 1
+    fi
+
+    # Si ya existe .gitignore
+    if [[ -f "$OUTFILE" ]]; then
+        read -p ".gitignore ya existe. ¿Agregar (a), Sobrescribir (s) o Cancelar (c)? [a/s/c]: " choice
+        case "$choice" in
+            [Aa]* )
+                printf "\n# Agregado por gen_gitignore: %s\n" "$templates" >> "$OUTFILE"
+                printf "%s\n" "$content" >> "$OUTFILE"
+                echo "Contenido agregado a $OUTFILE"
+                ;;
+            [Ss]* )
+                printf "# Sobrescrito por gen_gitignore: %s\n%s\n" "$templates" "$content" > "$OUTFILE"
+                echo "$OUTFILE sobrescrito"
+                ;;
+            * )
+                echo "Cancelado."
+                ;;
+        esac
+    else
+        printf "# Generado por gen_gitignore: %s\n%s\n" "$templates" "$content" > "$OUTFILE"
+        echo "$OUTFILE creado con plantillas: $templates"
+    fi
 }
