@@ -13,6 +13,10 @@ fi
 [ -f "$HOME/.config/shell/functions" ] && source "$HOME/.config/shell/functions"
 [ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
 
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
 export HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zsh_history"

@@ -493,86 +493,49 @@ install_dependencies() {
                 fi
                 
                 for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    if sudo apt install -y "$dep" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "$dep" &>/dev/null || dpkg -l | grep -q "^ii.*$dep"; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el comando no se encuentra: $dep"
-                            failed_packages+=("$dep")
-                        fi
+                    if sudo apt install -y "$dep" 2>/dev/null 1>&2; then
+                        message -success "✓ $dep"
+                        successful_packages+=("$dep")
                     else
-                        message -error "✗ Falló: $dep"
+                        message -error "✗ $dep"
                         failed_packages+=("$dep")
                     fi
-                    sleep 1
                 done
                 ;;
                 
             arch|manjaro)
                 # Actualizar repos e instalar
-                if ! sudo pacman -Sy; then
+                if ! sudo pacman -Sy 2>/dev/null 1>&2; then
                     message -error "Error actualizando repos pacman"
                     return 1
                 fi
                 
                 for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    # Mapeo especial para Arch
-                    local arch_pkg="$dep"
-                    case "$dep" in 
-                        "fd-find") arch_pkg="fd" ;;
-                    esac
-                    
-                    if sudo pacman -S --noconfirm "$arch_pkg" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "${arch_pkg%-*}" &>/dev/null || pacman -Q "$arch_pkg" &>/dev/null; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $arch_pkg"
-                            failed_packages+=("$dep")
-                        fi
+                    if sudo pacman -S --noconfirm "$dep" 2>/dev/null 1>&2; then
+                        message -success "✓ $dep"
+                        successful_packages+=("$dep")
                     else
-                        message -error "✗ Falló: $dep"
+                        message -error "✗ $dep"
                         failed_packages+=("$dep")
                     fi
-                    sleep 1
                 done
                 ;;
                 
             fedora|rhel)
                 # Actualizar repos e instalar
-                if ! sudo dnf check-update; then
+                if ! sudo dnf check-update -q 2>/dev/null 1>&2; then
                     message -error "Error actualizando repos dnf"
                     return 1
                 fi
                 
                 for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    # Mapeo especial para Fedora
-                    local fedora_pkg="$dep"
-                    case "$dep" in 
-                        "fd-find") fedora_pkg="fd-find" ;;
-                        "bat") fedora_pkg="bat" ;;
-                    esac
-                    
-                    if sudo dnf install -y "$fedora_pkg" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "$fedora_pkg" &>/dev/null || dnf list installed "$fedora_pkg" &>/dev/null; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $fedora_pkg"
-                            failed_packages+=("$dep")
-                        fi
+                    if sudo dnf install -y "$dep" 2>/dev/null 1>&2; then
+                        message -success "✓ $dep"
+                        successful_packages+=("$dep")
                     else
-                        message -error "✗ Falló: $dep"
+                        message -error "✗ $dep"
                         failed_packages+=("$dep")
                     fi
-                    sleep 1
                 done
                 ;;
                 
@@ -733,22 +696,40 @@ backup_existing_files() {
     sleep 2
     
     mkdir -p "$TARGET_BACKUP_DIR"
-    local backup_dir="${TARGET_BACKUP_DIR}/${BACKUP_TIMESTAMP}"
+    # Estructura de backup: backups/{DISTRO}/{SHELL_DETECTED}/{TIMESTAMP}
+    local backup_dir="${TARGET_BACKUP_DIR}/${DISTRO}/${SHELL_DETECTED}/${BACKUP_TIMESTAMP}"
     mkdir -p "$backup_dir"
     
     message -subtitle "Guardando archivos existentes..."
+    message -info "Backup por distro: $DISTRO, shell: $SHELL_DETECTED"
     
-    # Archivos a hacer backup (solo ~/ y configs del proyecto)
-    local items_to_backup=(
-        "$HOME/.bashrc"
-        "$HOME/.zshrc"
-        "$HOME/.bash_logout"
-        "$HOME/.p10k.zsh"
+    # Archivos a hacer backup (solo los relevantes para la shell detectada)
+    local items_to_backup=()
+    
+    # Archivos comunes a ambas shells
+    items_to_backup+=(
         "$TARGET_CONFIG_DIR/aliases"
         "$TARGET_CONFIG_DIR/exports"
         "$TARGET_CONFIG_DIR/functions"
     )
     
+    # Archivos específicos de la shell detectada
+    case "$SHELL_DETECTED" in
+        bash)
+            items_to_backup+=(
+                "$HOME/.bashrc"
+                "$HOME/.bash_logout"
+            )
+            ;;
+        zsh)
+            items_to_backup+=(
+                "$HOME/.zshrc"
+                "$HOME/.p10k.zsh"
+            )
+            ;;
+    esac
+    
+    # Hacer backup de los archivos
     for item in "${items_to_backup[@]}"; do
         if [[ -e "$item" ]]; then
             local rel_path="${item#"$HOME"/}"
@@ -764,10 +745,11 @@ backup_existing_files() {
 Backup creado: $(date '+%Y-%m-%d %H:%M:%S')
 Timestamp: $BACKUP_TIMESTAMP
 Sistema: $(uname -s)
-Distro: $(lsb_release -ds 2>/dev/null || echo "Unknown")
+Distro: $(lsb_release -ds 2>/dev/null || echo "$DISTRO")
 Shell: $SHELL_DETECTED
 Hostname: $(hostname)
 Usuario: $(whoami)
+Ruta del backup: $backup_dir
 EOF
     
     message -success "Backup guardado en: $backup_dir"
@@ -799,35 +781,46 @@ install_shell_rc_files() {
     message -title "INSTALANDO ARCHIVOS DE SHELL RC"
     sleep 2
     
-    message -subtitle "Instalando archivos de shell desde shells/..."
+    message -subtitle "Instalando archivos de shell detectado: $SHELL_DETECTED"
     
-    # Instalar archivos Bash (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.bashrc" ]] && cp "$HOME/.bashrc" "$HOME/.bashrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/bash/.bashrc" "$HOME/.bashrc"
-        message -success "Instalado: ~/.bashrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/bash/.bash_logout" ]]; then
-        cp "$SHELLS_DIR/bash/.bash_logout" "$HOME/.bash_logout"
-        message -success "Instalado: ~/.bash_logout"
-    fi
-    
-    # Instalar archivos Zsh (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/zsh/.zshrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$HOME/.zshrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/zsh/.zshrc" "$HOME/.zshrc"
-        message -success "Instalado: ~/.zshrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/zsh/.p10k.zsh" ]]; then
-        cp "$SHELLS_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
-        message -success "Instalado: ~/.p10k.zsh"
-    fi
+    case "$SHELL_DETECTED" in
+        bash)
+            # Instalar solo archivos Bash
+            if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
+                cp "$SHELLS_DIR/bash/.bashrc" "$HOME/.bashrc"
+                message -success "Instalado: ~/.bashrc"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/bash/.bashrc"
+            fi
+            
+            if [[ -f "$SHELLS_DIR/bash/.bash_logout" ]]; then
+                cp "$SHELLS_DIR/bash/.bash_logout" "$HOME/.bash_logout"
+                message -success "Instalado: ~/.bash_logout"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/bash/.bash_logout"
+            fi
+            ;;
+        zsh)
+            # Instalar solo archivos Zsh
+            if [[ -f "$SHELLS_DIR/zsh/.zshrc" ]]; then
+                cp "$SHELLS_DIR/zsh/.zshrc" "$HOME/.zshrc"
+                message -success "Instalado: ~/.zshrc"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/zsh/.zshrc"
+            fi
+            
+            if [[ -f "$SHELLS_DIR/zsh/.p10k.zsh" ]]; then
+                cp "$SHELLS_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
+                message -success "Instalado: ~/.p10k.zsh"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/zsh/.p10k.zsh"
+            fi
+            ;;
+        *)
+            message -error "Shell desconocida detectada: $SHELL_DETECTED"
+            message -info "No se instalarán archivos de shell RC"
+            ;;
+    esac
 }
 
 install_scripts() {
@@ -923,7 +916,7 @@ show_summary() {
     echo -e "${CYAN}Directorios:${RESET}"
     echo "  • Configuraciones: $TARGET_CONFIG_DIR"
     echo "  • Scripts: $TARGET_BIN_DIR"
-    echo "  • Backups: $TARGET_BACKUP_DIR/$BACKUP_TIMESTAMP"
+    echo "  • Backups: $TARGET_BACKUP_DIR/$DISTRO/$SHELL_DETECTED/$BACKUP_TIMESTAMP"
     echo ""
     
     if [[ ${#DEPENDENCIES_MISSING[@]} -eq 0 ]]; then

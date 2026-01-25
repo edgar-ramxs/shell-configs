@@ -11,6 +11,10 @@
 [ -f "$HOME/.config/shell/functions" ] && source "$HOME/.config/shell/functions"
 [ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
 
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
 # Cargar Oh-My-Bash si está disponible (XDG-compliant)
 if [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash/oh-my-bash.sh" ]]; then
     export OSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash"
