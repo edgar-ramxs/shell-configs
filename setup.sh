@@ -38,17 +38,23 @@ setup_xdg_variables() {
 # VARIABLES GLOBALES Y CONFIGURACIÓN
 # ============================================================================
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly CONFIG_DIR="${SCRIPT_DIR}/config"
-readonly SHELLS_DIR="${SCRIPT_DIR}/shells"
-readonly BIN_DIR="${SCRIPT_DIR}/local/bin"
-readonly DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+CONFIG_DIR="${SCRIPT_DIR}/config"
+readonly CONFIG_DIR
+SHELLS_DIR="${SCRIPT_DIR}/shells"
+readonly SHELLS_DIR
+BIN_DIR="${SCRIPT_DIR}/local/bin"
+readonly BIN_DIR
+DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
+readonly DEPS_FILE
 
 # Estas variables se establecerán después de setup_xdg_variables()
 TARGET_CONFIG_DIR=""
 TARGET_BACKUP_DIR=""
 TARGET_BIN_DIR=""
-readonly BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+readonly BACKUP_TIMESTAMP
 
 # ============================================================================
 # IMPORTAR LIBRERÍA COMPARTIDA
@@ -177,6 +183,16 @@ parse_dependencies() {
 
 install_github_dependencies() {
     message -title "INSTALANDO DEPENDENCIAS DE GITHUB"
+    
+    # Verificar que git está disponible
+    if ! command -v git &> /dev/null; then
+        message -error "git no está instalado. Por favor instálalo primero"
+        message -info "Usa: sudo apt-get install git  (para Debian/Ubuntu)"
+        message -info "     sudo pacman -S git        (para Arch)"
+        message -info "     sudo dnf install git      (para Fedora)"
+        return 1
+    fi
+    
     sleep 2
     
     # Parser TOML para sección [repositories]
@@ -213,8 +229,10 @@ install_github_dependencies() {
     done < "$DEPS_FILE"
     
     # Procesar cada repositorio
+    local failed_repos=()
     for repo in "${repos[@]}"; do
-        local repo_name=$(basename "$repo" .git)
+        local repo_name
+        repo_name=$(basename "$repo" .git)
         local target_dir=""
         
         # Usar XDG_DATA_HOME o ~/.local/share como base
@@ -244,11 +262,23 @@ install_github_dependencies() {
             message -success "✓ $repo_name ya existe en $target_dir"
         else
             # Crear directorio padre si es necesario
-            mkdir -p "$(dirname "$target_dir")"
+            mkdir -p "$(dirname "$target_dir")" || {
+                message -error "✗ No se puede crear directorio padre para $repo_name"
+                failed_repos+=("$repo_name")
+                continue
+            }
             
-                message -subtitle "Clonando $repo_name..."
+            message -subtitle "Clonando $repo_name..."
             sleep 1
             if git clone "$repo" "$target_dir" 2>/dev/null; then
+                # Validar que el clone fue exitoso verificando archivos clave
+                if [[ ! -d "$target_dir" ]] || [[ -z "$(ls -A "$target_dir" 2>/dev/null)" ]]; then
+                    message -error "✗ Clone completado pero directorio vacío: $target_dir"
+                    failed_repos+=("$repo_name")
+                    rm -rf "$target_dir"
+                    continue
+                fi
+                
                 message -success "✓ $repo_name instalado en $target_dir"
                 
                 # Configurar automáticamente oh-my-zsh y oh-my-bash
@@ -266,11 +296,18 @@ install_github_dependencies() {
                 esac
                 sleep 1
             else
-                message -error "✗ Error al clonar $repo_name"
-                return 1
+                message -error "✗ Error al clonar $repo_name desde $repo"
+                failed_repos+=("$repo_name")
             fi
         fi
     done
+    
+    # Resumen de repositorios
+    if [[ ${#failed_repos[@]} -gt 0 ]]; then
+        message -warning "Repositorios que no pudieron instalarse: ${failed_repos[*]}"
+        message -info "Verifica tu conexión a internet e intenta de nuevo"
+        return 1
+    fi
     
     # Verificar instalación de oh-my-zsh
     local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -414,13 +451,32 @@ install_dependencies() {
         message -warning "Se necesita permisos de sudo para instalar dependencias del sistema"
         
         # Solicitar sudo una sola vez al principio
-        if ! sudo -n true 2>/dev/null; then
-            message -info "Solicitando permisos de sudo para instalación de paquetes..."
-            sudo true || {
-                message -error "No se pueden obtener permisos de sudo"
+        local sudo_attempt=0
+        local sudo_max_attempts=3
+        
+        while (( sudo_attempt < sudo_max_attempts )); do
+            if sudo -n true 2>/dev/null; then
+                # Sudo sin contraseña disponible
+                break
+            fi
+            
+            message -info "Solicitando permisos de sudo para instalación de paquetes... (intento $((sudo_attempt + 1))/$sudo_max_attempts)"
+            
+            if sudo true 2>/dev/null; then
+                # Sudo con contraseña disponible
+                break
+            fi
+            
+            ((sudo_attempt++))
+            
+            if (( sudo_attempt >= sudo_max_attempts )); then
+                message -error "No se pudieron obtener permisos de sudo después de $sudo_max_attempts intentos"
                 return 1
-            }
-        fi
+            fi
+            
+            sleep 2
+        done
+        
         message -success "Permisos de sudo obtenidos"
         
         # Instalar paquetes individualmente con actualización incluida
@@ -431,13 +487,22 @@ install_dependencies() {
         case "$DISTRO" in
             ubuntu|debian)
                 # Actualizar repos e instalar
-                sudo apt update -qq || message -error "Error actualizando repos apt"
+                if ! sudo apt update -qq; then
+                    message -error "Error actualizando repos apt"
+                    return 1
+                fi
                 
                 for dep in "${system_deps[@]}"; do
                     message -info "Instalando: $dep"
                     if sudo apt install -y "$dep" 2>/dev/null; then
-                        message -success "✓ Instalado: $dep"
-                        successful_packages+=("$dep")
+                        # Validar que realmente se instaló
+                        if command -v "$dep" &>/dev/null || dpkg -l | grep -q "^ii.*$dep"; then
+                            message -success "✓ Instalado: $dep"
+                            successful_packages+=("$dep")
+                        else
+                            message -error "✗ Instalación reportó éxito pero el comando no se encuentra: $dep"
+                            failed_packages+=("$dep")
+                        fi
                     else
                         message -error "✗ Falló: $dep"
                         failed_packages+=("$dep")
@@ -448,17 +513,28 @@ install_dependencies() {
                 
             arch|manjaro)
                 # Actualizar repos e instalar
-                sudo pacman -Sy || message -error "Error actualizando repos pacman"
+                if ! sudo pacman -Sy; then
+                    message -error "Error actualizando repos pacman"
+                    return 1
+                fi
                 
                 for dep in "${system_deps[@]}"; do
                     message -info "Instalando: $dep"
                     # Mapeo especial para Arch
                     local arch_pkg="$dep"
-                    case "$dep" in "fd-find") arch_pkg="fd" ;; esac
+                    case "$dep" in 
+                        "fd-find") arch_pkg="fd" ;;
+                    esac
                     
                     if sudo pacman -S --noconfirm "$arch_pkg" 2>/dev/null; then
-                        message -success "✓ Instalado: $dep"
-                        successful_packages+=("$dep")
+                        # Validar que realmente se instaló
+                        if command -v "${arch_pkg%-*}" &>/dev/null || pacman -Q "$arch_pkg" &>/dev/null; then
+                            message -success "✓ Instalado: $dep"
+                            successful_packages+=("$dep")
+                        else
+                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $arch_pkg"
+                            failed_packages+=("$dep")
+                        fi
                     else
                         message -error "✗ Falló: $dep"
                         failed_packages+=("$dep")
@@ -469,7 +545,10 @@ install_dependencies() {
                 
             fedora|rhel)
                 # Actualizar repos e instalar
-                sudo dnf check-update || message -error "Error actualizando repos dnf"
+                if ! sudo dnf check-update; then
+                    message -error "Error actualizando repos dnf"
+                    return 1
+                fi
                 
                 for dep in "${system_deps[@]}"; do
                     message -info "Instalando: $dep"
@@ -481,8 +560,14 @@ install_dependencies() {
                     esac
                     
                     if sudo dnf install -y "$fedora_pkg" 2>/dev/null; then
-                        message -success "✓ Instalado: $dep"
-                        successful_packages+=("$dep")
+                        # Validar que realmente se instaló
+                        if command -v "$fedora_pkg" &>/dev/null || dnf list installed "$fedora_pkg" &>/dev/null; then
+                            message -success "✓ Instalado: $dep"
+                            successful_packages+=("$dep")
+                        else
+                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $fedora_pkg"
+                            failed_packages+=("$dep")
+                        fi
                     else
                         message -error "✗ Falló: $dep"
                         failed_packages+=("$dep")
@@ -517,7 +602,8 @@ install_dependencies() {
 # ============================================================================
 
 configure_oh_my_zsh() {
-    local oh_my_zsh_dir="$1"
+    # Parámetro recibido pero no necesario para esta implementación
+    # (se usa XDG_DATA_HOME directamente)
     
     message -subtitle "Configurando Oh My Zsh..."
     
@@ -539,28 +625,37 @@ configure_oh_my_zsh() {
     
     # Configurar .zshrc para usar oh-my-zsh
     local zshrc_path="$HOME/.zshrc"
-    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    local oh_my_zsh_data="$data_dir/oh-my-zsh"
     
     # Crear .zshrc con configuración de oh-my-zsh si no existe o está vacío
     if [[ ! -f "$zshrc_path" ]] || [[ ! -s "$zshrc_path" ]]; then
-        cat > "$zshrc_path" << EOF
+        cat > "$zshrc_path" << 'EOF'
 # Oh My Zsh Configuration
-export ZSH="\${XDG_DATA_HOME:-\$HOME/.local/share}/oh-my-zsh"
-export ZDOTDIR="\${XDG_CONFIG_HOME:-\$HOME/.config}/zsh"
+export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh"
+export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
 ZSH_THEME="robbyrussell"
 plugins=(git)
 
-source \$ZSH/oh-my-zsh.sh
+# Custom configurations (load before oh-my-zsh)
+if [[ -f "$HOME/.config/shell/exports" ]]; then
+    source "$HOME/.config/shell/exports"
+fi
 
-# Custom configurations
-source ~/.config/shell/exports
-source ~/.config/shell/aliases  
-source ~/.config/shell/functions
+if [[ -f "$HOME/.config/shell/aliases" ]]; then
+    source "$HOME/.config/shell/aliases"
+fi
+
+if [[ -f "$HOME/.config/shell/functions" ]]; then
+    source "$HOME/.config/shell/functions"
+fi
+
+# Load Oh My Zsh
+if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
+    source "$ZSH/oh-my-zsh.sh"
+fi
 EOF
         message -success "Configurado: ~/.zshrc para Oh My Zsh"
     else
-        message -info "~/.zshrc ya existe, conservando configuración existente"
+        message -info "$HOME/.zshrc ya existe, conservando configuración existente"
     fi
     
     # Cambiar shell a zsh si no es ya el default
@@ -573,14 +668,13 @@ EOF
 }
 
 configure_oh_my_bash() {
-    local oh_my_bash_dir="$1"
+    # Parámetro recibido pero no necesario para esta implementación
+    # (se usa XDG_DATA_HOME directamente)
     
     message -subtitle "Configurando Oh My Bash..."
     
     # Configurar .bashrc para usar oh-my-bash
     local bashrc_path="$HOME/.bashrc"
-    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    local oh_my_bash_data="$data_dir/oh-my-bash"
     
     # Hacer backup del .bashrc existente si no tiene oh-my-bash
     if [[ -f "$bashrc_path" ]] && ! grep -q "oh-my-bash" "$bashrc_path"; then
@@ -589,25 +683,43 @@ configure_oh_my_bash() {
     fi
     
     # Crear nuevo .bashrc con oh-my-bash (directamente en ~/)
-    cat > "$bashrc_path" << EOF
+    cat > "$bashrc_path" << 'EOF'
 # Oh My Bash Configuration
-export OSH="\${XDG_DATA_HOME:-\$HOME/.local/share}/oh-my-bash"
+export OSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash"
 
 # Custom configurations (loaded before oh-my-bash)
-source ~/.config/shell/exports
-source ~/.config/shell/aliases
-source ~/.config/shell/functions
+if [[ -f "$HOME/.config/shell/exports" ]]; then
+    source "$HOME/.config/shell/exports"
+fi
 
-# Load Oh My Bash
-\$OSH/themes/colours.theme.sh
-\$OSH/themes/base.theme.sh
-\$OSH/themes/prompt.theme.sh
+if [[ -f "$HOME/.config/shell/aliases" ]]; then
+    source "$HOME/.config/shell/aliases"
+fi
+
+if [[ -f "$HOME/.config/shell/functions" ]]; then
+    source "$HOME/.config/shell/functions"
+fi
+
+# Load Oh My Bash themes
+if [[ -f "$OSH/themes/colours.theme.sh" ]]; then
+    source "$OSH/themes/colours.theme.sh"
+fi
+
+if [[ -f "$OSH/themes/base.theme.sh" ]]; then
+    source "$OSH/themes/base.theme.sh"
+fi
+
+if [[ -f "$OSH/themes/prompt.theme.sh" ]]; then
+    source "$OSH/themes/prompt.theme.sh"
+fi
 
 # Oh My Bash initialization
-source \$OSH/oh-my-bash.sh
+if [[ -f "$OSH/oh-my-bash.sh" ]]; then
+    source "$OSH/oh-my-bash.sh"
+fi
 EOF
-        message -success "Configurado: ~/.bashrc para Oh My Bash"
-    
+
+    message -success "Configurado: ~/.bashrc para Oh My Bash"
     sleep 2
 }
 
@@ -639,7 +751,7 @@ backup_existing_files() {
     
     for item in "${items_to_backup[@]}"; do
         if [[ -e "$item" ]]; then
-            local rel_path="${item#$HOME/}"
+            local rel_path="${item#"$HOME"/}"
             local dest_path="$backup_dir/$rel_path"
             mkdir -p "$(dirname "$dest_path")"
             cp -r "$item" "$dest_path"
@@ -689,9 +801,6 @@ install_shell_rc_files() {
     
     message -subtitle "Instalando archivos de shell desde shells/..."
     
-    # Directorios para validación (solo si se necesitan)
-    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
-    
     # Instalar archivos Bash (directamente en ~/)
     if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
         # Backup si ya existe en home
@@ -732,7 +841,8 @@ install_scripts() {
     if [[ -d "$BIN_DIR" ]]; then
         for script in "$BIN_DIR"/*; do
             if [[ -f "$script" ]]; then
-                local script_name=$(basename "$script")
+                local script_name
+                script_name=$(basename "$script")
                 cp "$script" "$TARGET_BIN_DIR/$script_name"
                 chmod +x "$TARGET_BIN_DIR/$script_name"
                 message -success "Script: $script_name"

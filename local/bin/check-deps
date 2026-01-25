@@ -20,11 +20,14 @@ set -euo pipefail
 # VARIABLES GLOBALES Y CONFIGURACIÓN
 # ============================================================================
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-readonly DEPS_FILE="${REPO_DIR}/dependencies.toml"
-readonly CONFIG_DIR="${REPO_DIR}/config"
-readonly TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+readonly REPO_DIR
+DEPS_FILE="${REPO_DIR}/dependencies.toml"
+readonly DEPS_FILE
+CONFIG_DIR="${REPO_DIR}/config"
+readonly CONFIG_DIR
 
 # Importar librería compartida
 if [[ ! -f "$CONFIG_DIR/lib.sh" ]]; then
@@ -157,7 +160,7 @@ install_apt() {
         fi
     done
     
-    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 install_pacman() {
@@ -175,7 +178,7 @@ install_pacman() {
         fi
     done
     
-    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 install_dnf() {
@@ -193,7 +196,7 @@ install_dnf() {
         fi
     done
     
-    return $([[ $failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 install_missing_deps() {
@@ -205,7 +208,8 @@ install_missing_deps() {
     message -title "INSTALANDO DEPENDENCIAS FALTANTES"
     message -warning "Se requieren permisos de sudo"
     
-    local pkg_manager=$(get_package_manager)
+    local pkg_manager
+    pkg_manager=$(get_package_manager)
     
     case "$pkg_manager" in
         apt)
