@@ -343,20 +343,30 @@ check_github_dependencies() {
     
     # Verificar oh-my-zsh (XDG-compliant)
     local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local github_repos_needed=false
+    
     if [[ -f "$data_dir/oh-my-zsh/oh-my-zsh.sh" ]]; then
         export ZSH="$data_dir/oh-my-zsh"
-        message -success "oh-my-zsh configurado correctamente (XDG-compliant)"
+        message -success "✓ oh-my-zsh disponible (XDG-compliant)"
     else
-        message -warning "oh-my-zsh no se pudo instalar"
+        message -warning "✗ oh-my-zsh no encontrado (se instalará automáticamente)"
+        github_repos_needed=true
     fi
     
-    # Verificar powerlevel10k
-    if [[ -f "$HOME/.oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
-        message -success "✓ powerlevel10k disponible"
+    # Verificar powerlevel10k (XDG-compliant)
+    if [[ -f "$data_dir/oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
+        message -success "✓ powerlevel10k disponible (XDG-compliant)"
     else
         message -warning "✗ powerlevel10k no encontrado (se instalará automáticamente)"
+        github_repos_needed=true
+    fi
+    
+    # Agregar github-repos solo una vez si se necesita alguno
+    if [[ "$github_repos_needed" == true ]]; then
+        # Verificar que no esté ya en la lista
         if [[ ! " ${DEPENDENCIES_MISSING[*]} " =~ " github-repos " ]]; then
             DEPENDENCIES_MISSING+=("github-repos")
+            message -info "✓ Agregado github-repos a dependencias faltantes"
         fi
     fi
 }
@@ -413,54 +423,88 @@ install_dependencies() {
         fi
         message -success "Permisos de sudo obtenidos"
         
+        # Instalar paquetes individualmente con actualización incluida
+        message -subtitle "Instalando paquetes individualmente..."
+        local failed_packages=()
+        local successful_packages=()
+        
         case "$DISTRO" in
             ubuntu|debian)
-                message -subtitle "Usando apt (Debian/Ubuntu)..."
-                sudo apt update -qq
+                # Actualizar repos e instalar
+                sudo apt update -qq || message -error "Error actualizando repos apt"
                 
                 for dep in "${system_deps[@]}"; do
-                    message -subtitle "Instalando $dep..."
-                    sudo apt install -y "$dep" && message -success "Instalado: $dep" || message -error "Error instalando: $dep"
+                    message -info "Instalando: $dep"
+                    if sudo apt install -y "$dep" 2>/dev/null; then
+                        message -success "✓ Instalado: $dep"
+                        successful_packages+=("$dep")
+                    else
+                        message -error "✗ Falló: $dep"
+                        failed_packages+=("$dep")
+                    fi
                     sleep 1
                 done
                 ;;
+                
             arch|manjaro)
-                message -subtitle "Usando pacman (Arch Linux)..."
-                sudo pacman -Sy
+                # Actualizar repos e instalar
+                sudo pacman -Sy || message -error "Error actualizando repos pacman"
                 
                 for dep in "${system_deps[@]}"; do
-                    message -subtitle "Instalando $dep..."
-                    # Mapeo especial para algunas dependencias en Arch
+                    message -info "Instalando: $dep"
+                    # Mapeo especial para Arch
                     local arch_pkg="$dep"
-                    case "$dep" in
-                        "fd-find") arch_pkg="fd" ;;
-                    esac
-                    sudo pacman -S --noconfirm "$arch_pkg" && message -success "Instalado: $dep" || message -error "Error instalando: $dep"
+                    case "$dep" in "fd-find") arch_pkg="fd" ;; esac
+                    
+                    if sudo pacman -S --noconfirm "$arch_pkg" 2>/dev/null; then
+                        message -success "✓ Instalado: $dep"
+                        successful_packages+=("$dep")
+                    else
+                        message -error "✗ Falló: $dep"
+                        failed_packages+=("$dep")
+                    fi
                     sleep 1
                 done
                 ;;
+                
             fedora|rhel)
-                message -subtitle "Usando dnf (Fedora/RHEL)..."
-                sudo dnf check-update
+                # Actualizar repos e instalar
+                sudo dnf check-update || message -error "Error actualizando repos dnf"
                 
                 for dep in "${system_deps[@]}"; do
-                    message -subtitle "Instalando $dep..."
-                    # Mapeo especial para algunas dependencias en Fedora
+                    message -info "Instalando: $dep"
+                    # Mapeo especial para Fedora
                     local fedora_pkg="$dep"
-                    case "$dep" in
+                    case "$dep" in 
                         "fd-find") fedora_pkg="fd-find" ;;
                         "bat") fedora_pkg="bat" ;;
                     esac
-                    sudo dnf install -y "$fedora_pkg" && message -success "Instalado: $dep" || message -error "Error instalando: $dep"
+                    
+                    if sudo dnf install -y "$fedora_pkg" 2>/dev/null; then
+                        message -success "✓ Instalado: $dep"
+                        successful_packages+=("$dep")
+                    else
+                        message -error "✗ Falló: $dep"
+                        failed_packages+=("$dep")
+                    fi
                     sleep 1
                 done
                 ;;
+                
             *)
                 message -error "No se puede instalar automáticamente en $DISTRO"
                 message -warning "Por favor instale manualmente: ${system_deps[*]}"
                 return 1
                 ;;
         esac
+        
+        # Resumen de instalación
+        if [[ ${#failed_packages[@]} -gt 0 ]]; then
+            message -warning "Paquetes fallidos: ${failed_packages[*]}"
+        fi
+        if [[ ${#successful_packages[@]} -gt 0 ]]; then
+            message -success "Paquetes instalados: ${successful_packages[*]}"
+        fi
     fi
     
     # Instalar dependencias de GitHub
