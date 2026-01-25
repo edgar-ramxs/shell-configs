@@ -5,8 +5,8 @@
 #  ██╗███████╗███████║██║  ██║██║  ██║╚██████╗
 #  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝
 
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
 [ -f "$HOME/.config/shell/exports" ] && source "$HOME/.config/shell/exports"
@@ -15,7 +15,10 @@ fi
 
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
-export HISTFILE="$HOME/.cache/zsh_history"
+export HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zsh_history"
+
+# Asegurar directorio de historial
+mkdir -p "$(dirname "$HISTFILE")"
 
 plugins=(
   git
@@ -25,9 +28,13 @@ plugins=(
   history-substring-search
 )
 
-source $ZSH/oh-my-zsh.sh
+# Solo cargar oh-my-zsh si está instalado en XDG_DATA_HOME
+if [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh/oh-my-zsh.sh" ]]; then
+    source ${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh/oh-my-zsh.sh
+fi
+
 autoload -Uz promptinit && promptinit
-autoload -Uz compinit && compinit -C -d $XDG_CACHE_HOME/.zcompdump
+autoload -Uz compinit && compinit -C -d ${XDG_CACHE_HOME:-$HOME/.cache}/.zcompdump
 
 # setopt menu_complete            # Muestra todas las opciones disponibles si hay ambigüedad
 # setopt autocd                   # change directory just by typing its name
@@ -62,4 +69,5 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 ZSH_THEME="powerlevel10k/powerlevel10k"
 
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# Powerlevel10k configuración XDG-compliant
+[[ ! -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/.p10k.zsh" ]] || source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/.p10k.zsh"

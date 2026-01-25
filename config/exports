@@ -184,6 +184,16 @@ if [[ "$SHELL" == *"zsh"* ]]; then
     export ZSH="$XDG_DATA_HOME/oh-my-zsh"
 fi
 
+# Oh-My-Bash (si bash es el shell actual)
+if [[ "$SHELL" == *"bash"* ]]; then
+    export OSH="$XDG_DATA_HOME/oh-my-bash"
+fi
+
+# Configuración ZDOTDIR para zsh (respeta XDG)
+if command -v zsh &>/dev/null; then
+    export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+fi
+
 # ============================================================================
 # CONFIGURACIÓN AVANZADA (COMENTADA - DESCOMENTA SI NECESITAS)
 # ============================================================================

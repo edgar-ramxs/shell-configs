@@ -11,6 +11,12 @@
 [ -f "$HOME/.config/shell/functions" ] && source "$HOME/.config/shell/functions"
 [ -f "$HOME/.config/shell/aliases" ] && source "$HOME/.config/shell/aliases"
 
+# Cargar Oh-My-Bash si está disponible (XDG-compliant)
+if [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash/oh-my-bash.sh" ]]; then
+    export OSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash"
+    source ${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash/oh-my-bash.sh
+fi
+
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
 shopt -s histappend
@@ -19,7 +25,10 @@ shopt -s globstar
 
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
-export HISTFILE="$HOME/.cache/bash_history"
+export HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/bash/bash_history"
+
+# Asegurar directorio de historial
+mkdir -p "$(dirname "$HISTFILE")"
 
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
