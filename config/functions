@@ -12,26 +12,27 @@
 # ============================================================================
 
 function hydra() {
-    clear &&
-    echo \
-    "    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢤⡀⠀⠰⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⣠⣤⣀⣀⣀⣀⡀⠀⢀⣠⠀⠀⠀⠀⠀⠠⠐⠒⣒⣲⣶⣦⣽⣦⣀⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠛⠛⢿⣿⣶⣽⣿⣿⣯⣥⣀⡀⠀⠀⠀⣠⣶⣿⣿⣿⠿⠟⠿⢿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠈⠻⠛⠉⠙⠻⣿⣿⣶⣍⠀⠊⢱⣿⣿⣿⡇⠀⠀⠀⠀⠈⣿⣿⣶⣽⣆⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣯⡑⠀⢸⣿⣿⣿⣿⡄⠀⠀⠀⢀⠙⠛⠛⠿⣿⣿⣦⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⣿⣿⢷⠀⠘⣏⠻⣿⣿⣿⣦⣤⣀⣈⣲⣤⣀⣀⡀⠛⠃⠀⠀⠀⠀⠀
-⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⠀⠀⠀⠈⠔⠚⣻⣿⣿⣿⣿⣿⣿⣿⣿⣯⣝⣧⣤⣄⣀⠀⠀⠀
-⠀⠀⠀⢠⣇⣴⣮⣥⣤⡀⠀⢸⣿⣿⡏⠏⠀⠀⠀⣠⣾⣿⣿⡿⠟⢿⣿⣿⣆⠈⢿⣿⠿⠿⠿⠿⣿⠀⠀⠀
-⠀⠀⣠⢿⣿⡿⠿⣿⣿⣷⣅⢸⣿⣿⡇⠀⠀⠀⠔⣹⣿⣿⡏⠀⠀⠈⣿⣿⣿⡀⠀⠠⠄⣀⠀⡆⠀⠀⠀⠀
-⠀⢀⣯⣾⡿⠆⠀⢸⣿⣿⣧⠉⣿⣿⣷⡀⠀⠀⢠⣿⣿⣿⣧⡀⠀⢀⣿⣿⣿⠀⠠⣲⣿⣿⣿⣿⣦⡀⠀⠀
-⠀⣿⡟⠁⠀⠀⠀⣾⣿⣿⠻⠀⠘⢿⣿⣿⣦⡀⠀⢏⠻⣿⣿⣿⣆⣼⣿⣿⣿⢀⣺⣿⣿⠁⠈⣿⣷⣷⡀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⣇⠁⠀⠀⠀⠙⢿⣿⣿⣷⣮⣄⣹⣿⣿⣿⣿⣿⣿⡿⠀⡿⣿⣿⣄⠀⠀⠈⠹⡿⠀
-⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣦⣄⣀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠘⢹⣿⣿⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠈⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣃⣀⣠⣴⣿⣿⠏⠀⠀⠀⠀⠀⠀
-    ⠀⠀⠀⠀⠀⠀⠀⠀⠲⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⠅⠀⠀⠀⠀⠀⠀⠀⠀"
-    tput civis
-    read -n 1
-    tput cnorm
+  # Muestra un arte ASCII animado de Hydra
+  # Uso: hydra
+  # Efecto: Limpia pantalla, muestra arte ASCII, espera una tecla
+  clear &&
+  echo \
+  "    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢤⡀⠀⠰⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⣠⣤⣀⣀⣀⣀⡀⠀⢀⣠⠀⠀⠀⠀⠀⠠⠐⠒⣒⣲⣶⣦⣽⣦⣀⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠛⠛⢿⣿⣶⣽⣿⣿⣯⣥⣀⡀⠀⠀⠀⣠⣶⣿⣿⠿⠟⠿⢿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠈⠻⠛⠉⠙⠻⣿⣿⣶⣍⠀⠊⢱⣿⣿⣿⡇⠀⠀⠀⠀⠈⣿⣿⣶⣽⣆⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣯⡑⠀⢸⣿⣿⣿⣿⡄⠀⠀⠀⢀⠙⠛⠿⣿⣿⣦⠀⠀⠀⠀⠀
+⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⠀⠀⠀⠈⠔⠚⣻⣿⣿⣦⣤⣀⣈⣲⣤⣀⣀⡀⠛⠃⠀⠀⠀⠀⠀
+⠀⠀⢠⣇⣴⣮⣥⣤⡀⠀⢸⣿⣿⡏⠏⠀⠀⠀⣠⣾⣿⣿⡿⠟⢿⣿⣿⣆⠈⢿⣿⠿⠿⠿⠿⣿⠀⠀⠀
+⠀⣠⢿⣿⡿⠆⠀⢸⣿⣿⣧⠉⣿⣿⣷⡀⠀⠀⢠⣿⣿⣿⣧⡀⠀⢀⣿⣿⣿⠀⠠⠄⣀⠀⡆⠀⠀⠀⠀
+⢀⣯⣾⡿⠆⠀⢸⣿⣿⣧⠉⣿⣿⣷⡀⠀⠀⢏⠻⣿⣿⣿⣆⣼⣿⣿⣿⢀⣺⣿⣿⠁⠈⣿⣷⣷⡀⠀⠀
+⣿⡟⠁⠀⠀⠀⣾⣿⣿⠻⠀⠘⢿⣿⣿⣦⡀⠀⢏⠻⣿⣿⣿⣿⣿⣿⣿⡿⠀⡿⣿⣿⣄⠀⠀⠈⠹⡿⠀
+⠀⠀⠀⠀⠀⢸⣿⣿⣇⠁⠀⠀⠀⠙⢿⣿⣿⣷⣮⣄⣹⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠘⢹⣿⣿⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⢿⣿⣿⣦⣄⣀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣃⣀⣠⣴⣿⣿⠏⠀⠀⠀⠀⠀⠀
+    ⠀⠀⠀⠀⠀⠀⠀⠀⠲⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⠅⠀⠀⠀⠀⠀⠀⠀⠀"
+  tput civis
+  read -n 1
+  tput cnorm
 }
 
 function message() {
@@ -67,53 +68,176 @@ function man() {
 }
 
 function extract-files() {
-    if [ -f "$1" ]; then
-        case "$1" in
-            *.tar.bz2) tar xvjf "$1" ;;
-            *.tar.gz) tar xvzf "$1" ;;
-            *.bz2) bunzip2 "$1" ;;
-            *.rar) unrar x "$1" ;;
-            *.gz) gunzip "$1" ;;
-            *.tar) tar xvf "$1" ;;
-            *.tbz2) tar xvjf "$1" ;;
-            *.tgz) tar xvzf "$1" ;;
-            *.zip) unzip "$1" ;;
-            *.Z) uncompress "$1" ;;
-            *.7z) 7z x "$1" ;;
-            *) echo "Don't know how to extract '$1'..." ;;
-        esac
-    else
-        echo "'$1' is not a valid file!"
-    fi
+  # Extrae archivos comprimidos de forma automática según la extensión
+  # Uso: extract-files <archivo>
+  # Soporta: tar.bz2, tar.gz, bz2, rar, gz, tar, tbz2, tgz, zip, Z, 7z
+  # Retorna: 0 si éxito, 1 si error
+  
+  if [[ $# -eq 0 ]]; then
+    echo "Uso: extract-files <archivo>"
+    return 1
+  fi
+  
+  if [[ ! -f "$1" ]]; then
+    echo "Error: '$1' no es un archivo válido o no existe"
+    return 1
+  fi
+  
+  local file="$1"
+  local filename
+  filename="$(basename "$file")"
+  
+  # Validar que el archivo no sea peligroso
+  if [[ "$file" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
+    echo "Error: Path no permitido: $file"
+    return 1
+  fi
+  
+  echo "Extrayendo: $filename"
+  
+  case "$file" in
+    *.tar.bz2) 
+      if command -v tar >/dev/null 2>&1; then
+        tar xvjf "$file"
+      else
+        echo "Error: tar no está instalado"
+        return 1
+      fi
+      ;;
+    *.tar.gz) 
+      if command -v tar >/dev/null 2>&1; then
+        tar xvzf "$file"
+      else
+        echo "Error: tar no está instalado"
+        return 1
+      fi
+      ;;
+    *.bz2) 
+      if command -v bunzip2 >/dev/null 2>&1; then
+        bunzip2 "$file"
+      else
+        echo "Error: bunzip2 no está instalado"
+        return 1
+      fi
+      ;;
+    *.rar) 
+      if command -v unrar >/dev/null 2>&1; then
+        unrar x "$file"
+      else
+        echo "Error: unrar no está instalado"
+        return 1
+      fi
+      ;;
+    *.gz) 
+      if command -v gunzip >/dev/null 2>&1; then
+        gunzip "$file"
+      else
+        echo "Error: gunzip no está instalado"
+        return 1
+      fi
+      ;;
+    *.tar) 
+      if command -v tar >/dev/null 2>&1; then
+        tar xvf "$file"
+      else
+        echo "Error: tar no está instalado"
+        return 1
+      fi
+      ;;
+    *.tbz2) 
+      if command -v tar >/dev/null 2>&1; then
+        tar xvjf "$file"
+      else
+        echo "Error: tar no está instalado"
+        return 1
+      fi
+      ;;
+    *.tgz) 
+      if command -v tar >/dev/null 2>&1; then
+        tar xvzf "$file"
+      else
+        echo "Error: tar no está instalado"
+        return 1
+      fi
+      ;;
+    *.zip) 
+      if command -v unzip >/dev/null 2>&1; then
+        unzip "$file"
+      else
+        echo "Error: unzip no está instalado"
+        return 1
+      fi
+      ;;
+    *.Z) 
+      if command -v uncompress >/dev/null 2>&1; then
+        uncompress "$file"
+      else
+        echo "Error: uncompress no está instalado"
+        return 1
+      fi
+      ;;
+    *.7z) 
+      if command -v 7z >/dev/null 2>&1; then
+        7z x "$file"
+      else
+        echo "Error: 7z no está instalado"
+        return 1
+      fi
+      ;;
+    *) 
+      echo "Error: No sé cómo extraer '$filename'"
+      echo "Formatos soportados: tar.bz2, tar.gz, bz2, rar, gz, tar, tbz2, tgz, zip, Z, 7z"
+      return 1
+      ;;
+  esac
 }
 
-function mkt(){
-	mkdir {nmap,content,exploits,scripts}
+function mkt() {
+  # Crea estructura de directorios para pentesting
+  # Uso: mkt
+  # Crea: nmap, content, exploits, scripts
+  mkdir {nmap,content,exploits,scripts}
 }
 
-function cdl () { cd "$@" && ls; }
+function cdl() { 
+  # Cambia de directorio y lista contenido
+  # Uso: cdl [directorio]
+  cd "$@" && ls; 
+}
 
 function cmkdir() {
-    if [ -z "$1" ]; then
-        message -warning "Usage: cmkdir <directory-name>"
-        return 1
-    fi
-    mkdir "$1"
-    cd "$1"
+  # Crea directorio y entra en él
+  # Uso: cmkdir <nombre-directorio>
+  if [[ -z "$1" ]]; then
+    message -warning "Uso: cmkdir <nombre-directorio>"
+    return 1
+  fi
+  mkdir "$1" || return 1
+  cd "$1" || return 1
 }
 
 function rmk() {
-    if [ -z "$1" ] || [ ! -e "$1" ]; then
-        message -error "Usage: rmk <file|directory>"
-        return 1
-    fi
-    # Usar shred como método estándar para sobrescribir archivos
-    if command -v shred &>/dev/null; then
-        shred -zun 10 -v "$1"
-    else
-        message -warning "shred no está disponible, usando rm normal"
-        rm -rf "$1"
-    fi
+  # Elimina archivos/directorios de forma segura
+  # Uso: rmk <archivo|directorio>
+  # Usa shred si está disponible para borrado seguro
+  if [[ -z "$1" ]] || [[ ! -e "$1" ]]; then
+    message -error "Uso: rmk <archivo|directorio>"
+    return 1
+  fi
+  
+  # Validar path seguro
+  if [[ "$1" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
+    message -error "Path no permitido: $1"
+    return 1
+  fi
+  
+  # Usar shred como método estándar para sobrescribir archivos
+  if command -v shred >/dev/null 2>&1; then
+    shred -zun 10 -v "$1"
+  else
+    message -warning "shred no está disponible, usando rm normal"
+    rm -rf "$1"
+  fi
 }
 
 function extract-ports() {
@@ -158,18 +282,22 @@ function open-file() {
 }
 
 function venv-create() {
-    local dir_name=$(basename "$(pwd)")
-    local env_name=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)
+    # Crea un entorno virtual Python con nombre basado en el directorio actual
+    # Uso: venv-create
+    local dir_name
+    dir_name="$(basename "$(pwd)")"
+    local env_name
+    env_name="$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)"
     env_name=".$env_name-env"
     
     python3 -m venv "$env_name"
-    if [ $? -ne 0 ]; then
+    if [[ $? -ne 0 ]]; then
         message -error "Failed to create virtual environment."
         return 1
     fi
     
     source "$env_name/bin/activate"
-    if [ $? -ne 0 ]; then
+    if [[ $? -ne 0 ]]; then
         message -error "Failed to activate virtual environment."
         return 1
     fi
@@ -178,124 +306,365 @@ function venv-create() {
 }
 
 function get-venv-name() {
-    local dir_name=$(basename "$(pwd)")
+    # Obtiene el nombre del entorno virtual basado en el directorio actual
+    # Uso: get-venv-name
+    local dir_name
+    dir_name="$(basename "$(pwd)")"
     echo -e ".$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)-env"
 }
 
 function settarget(){
-    local htb_config_dir="$HOME/.config/rofi/htb"
+    # Usar XDG Base Directory specification
+    local xdg_config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    local htb_config_dir="$xdg_config/rofi/htb"
     local target_file="$htb_config_dir/mark-name"
+    
+    # Validar entrada de IP (básica)
+    local ip_pattern='^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+    local ip_arg="$1"
+    local name_arg="${2:-}"
+    
+    # Validar número de argumentos
+    if [[ $# -eq 0 ]] || [[ $# -gt 2 ]]; then
+        message -error "Uso: settarget <IP> [NAME] | settarget <IP>"
+        return 1
+    fi
+    
+    # Validar formato de IP
+    if [[ ! "$ip_arg" =~ $ip_pattern ]]; then
+        message -error "Formato de IP inválido: $ip_arg"
+        return 1
+    fi
+    
+    # Validar octetos de IP
+    IFS='.' read -ra ADDR <<< "$ip_arg"
+    for octet in "${ADDR[@]}"; do
+        if [[ "$octet" -gt 255 ]] || [[ "$octet" -lt 0 ]]; then
+            message -error "Octeto de IP inválido: $octet (debe ser 0-255)"
+            return 1
+        fi
+    done
+    
+    # Validar nombre (si se proporciona)
+    if [[ -n "$name_arg" ]]; then
+        # Permitir solo alfanuméricos, guiones y guiones bajos
+        if [[ ! "$name_arg" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            message -error "Nombre inválido: $name_arg (solo alfanuméricos, guiones y guiones bajos)"
+            return 1
+        fi
+        
+        # Validar longitud
+        if [[ ${#name_arg} -gt 50 ]]; then
+            message -error "Nombre demasiado largo: $name_arg (máximo 50 caracteres)"
+            return 1
+        fi
+    fi
     
     # Validar que la estructura de directorios existe
     if [[ ! -d "$htb_config_dir" ]]; then
-        message -warning "Directorio $htb_config_dir no existe. Creando estructura..."
+        message -info "Creando directorio de configuración: $htb_config_dir"
         mkdir -p "$htb_config_dir" || {
             message -error "No se pudo crear $htb_config_dir"
             return 1
         }
     fi
     
-    if [[ $# -eq 1 ]]; then
-        echo "$1" > "$target_file"
-        message -success "Target asignado a: $1"
-    elif [[ $# -eq 2 ]]; then
-        echo "$1 $2" > "$target_file"
-        message -success "Target asignado a: $1 ($2)"
-    else
-        message -error "Uso: settarget [IP] [NAME] | settarget [IP]"
+    # Validar que podemos escribir en el archivo
+    if ! touch "$target_file" 2>/dev/null; then
+        message -error "No se puede escribir en: $target_file"
         return 1
     fi
+    
+    # Guardar target
+    if [[ -n "$name_arg" ]]; then
+        echo "$ip_arg $name_arg" > "$target_file" || {
+            message -error "Error al guardar target"
+            return 1
+        }
+        message -success "Target asignado: $ip_arg ($name_arg)"
+    else
+        echo "$ip_arg" > "$target_file" || {
+            message -error "Error al guardar target"
+            return 1
+        }
+        message -success "Target asignado: $ip_arg"
+    fi
+    
+    # Mostrar información del archivo
+    message -info "Guardado en: $target_file"
+    message -info "Configuración XDG: $xdg_config"
 }
 
 function fzf-lovely(){
-    if [ "$1" = "h" ]; then
-        fzf -m --reverse --preview-window down:20 --preview '[[ $(file --mime {}) =~ binary ]] &&
- 	                echo {} is a binary file ||
-	                 (bat --style=numbers --color=always {} ||
-	                  highlight -O ansi -l {} ||
-	                  coderay {} ||
-	                  rougify {} ||
-        cat {}) 2> /dev/null | head -500'
-        
-    else
-        fzf -m --preview '[[ $(file --mime {}) =~ binary ]] &&
-	                         echo {} is a binary file ||
-	                         (bat --style=numbers --color=always {} ||
-	                          highlight -O ansi -l {} ||
-	                         coderay {} ||
-	                          rougify {} ||
-        cat {}) 2> /dev/null | head -500'
+    # Validar que fzf esté disponible
+    if ! command -v fzf >/dev/null 2>&1; then
+        message -error "fzf no está instalado. Instálalo con: sudo apt install fzf"
+        return 1
     fi
+    
+    # Función optimizada para detectar si un archivo es binario
+    is_binary() {
+        local file="$1"
+        # Usar file command con caché para mejor performance
+        if command -v file >/dev/null 2>&1; then
+            file -b --mime-type "$file" 2>/dev/null | grep -q "^binary/"
+        else
+            # Fallback: verificar caracteres nulos en primeros bytes
+            [[ -f "$file" ]] && head -c 1024 "$file" 2>/dev/null | grep -q $'\0'
+        fi
+    }
+    
+    # Función optimizada para previsualización con múltiples herramientas
+    preview_content() {
+        local file="$1"
+        
+        # Salida temprana para archivos binarios
+        if is_binary "$file"; then
+            echo "📁 Binary file: $(basename "$file")"
+            return 0
+        fi
+        
+        # Tamaño máximo para previsualización (100KB para evitar lentitud)
+        local max_size=$((100 * 1024))
+        local file_size
+        file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 0)
+        
+        if [[ $file_size -gt $max_size ]]; then
+            echo "📄 File too large for preview ($(echo "scale=1; $file_size/1024" | bc)KB)"
+            echo "First 5 lines:"
+            head -5 "$file" 2>/dev/null
+            return 0
+        fi
+        
+        # Intentar diferentes herramientas en orden de preferencia
+        local tool_used=""
+        
+        # bat (mejor opción con sintaxis)
+        if command -v bat >/dev/null 2>&1; then
+            if bat --style=numbers --color=always "$file" 2>/dev/null; then
+                tool_used="bat"
+            fi
+        fi
+        
+        # highlight (alternativa)
+        if [[ -z "$tool_used" ]] && command -v highlight >/dev/null 2>&1; then
+            if highlight -O ansi -l "$file" 2>/dev/null; then
+                tool_used="highlight"
+            fi
+        fi
+        
+        # coderay (otra alternativa)
+        if [[ -z "$tool_used" ]] && command -v coderay >/dev/null 2>&1; then
+            if coderay "$file" 2>/dev/null; then
+                tool_used="coderay"
+            fi
+        fi
+        
+        # rougify (última alternativa)
+        if [[ -z "$tool_used" ]] && command -v rougify >/dev/null 2>&1; then
+            if rougify "$file" 2>/dev/null; then
+                tool_used="rougify"
+            fi
+        fi
+        
+        # cat como fallback final
+        if [[ -z "$tool_used" ]]; then
+            cat "$file" 2>/dev/null
+        fi
+    }
+    
+    # Construir comando de preview optimizado
+    local preview_cmd='preview_content {} 2>/dev/null || echo "Error: Cannot preview file"'
+    
+    # Configuración optimizada según argumentos
+    local fzf_opts=(
+        "-m"  # Selección múltiple
+        "--preview" "$preview_cmd"
+        "--preview-window" "down:20"  # Ventana más pequeña para mejor rendimiento
+    )
+    
+    # Modo horizontal si se especifica "h"
+    if [[ "$1" == "h" ]]; then
+        fzf_opts+=("--reverse")
+    fi
+    
+    # Opciones adicionales para mejor rendimiento
+    fzf_opts+=(
+        "--height" "40%"
+        "--border"
+        "--prompt" "🔍 "
+        "--pointer" "▶"
+        "--marker" "✓"
+    )
+    
+    # Ejecutar fzf con opciones optimizadas
+    fzf "${fzf_opts[@]}" 2>/dev/null
 }
 
-function cu {
-    local count=$1
-    if [ -z "${count}" ]; then
-        count=1
-    fi
-    local path=""
-    for i in $(seq 1 ${count}); do
-        path="${path}../"
-    done
-    cd $path
+function cu() {
+  # Navega hacia arriba N directorios
+  # Uso: cu [número-de-directorios]
+  local count="${1:-1}"
+  local path=""
+  
+  for i in $(seq 1 "$count"); do
+    path="${path}../"
+  done
+  cd "$path" || return 1
 }
 
 function compile-pls() {
-    if [[ -z "$1" ]]; then
+    # Validar argumentos de forma segura
+    if [[ $# -eq 0 ]]; then
         message -cancel "Error: Debes proporcionar un archivo."
         return 1
     fi
     
-    if [[ ! -f "$1" ]]; then
-        message -cancel "Error: El archivo '$1' no existe."
+    local input_file="$1"
+    
+    # Validar y sanitizar el path del archivo de entrada
+    if [[ "$input_file" =~ \.\./|\.\.\\|~[/\\]|\$|\;|\|\||\&|\||\>|\< ]]; then
+        message -cancel "Error: El path contiene caracteres no permitidos."
         return 1
     fi
     
-    local filename=$(basename "$1")
+    # Convertir a path absoluto de forma segura
+    local abs_file
+    abs_file="$(realpath -m "$input_file" 2>/dev/null)" || {
+        message -cancel "Error: Path inválido o inaccesible: $input_file"
+        return 1
+    }
+    
+    # Verificar que el archivo existe, es regular y es legible
+    if [[ ! -f "$abs_file" ]] || [[ ! -r "$abs_file" ]]; then
+        message -cancel "Error: El archivo '$input_file' no existe o no es legible."
+        return 1
+    }
+    
+    # Extraer componentes del nombre de archivo de forma segura
+    local filename
+    filename="$(basename "$abs_file")"
+    
+    # Validar que el nombre de archivo no contenga caracteres peligrosos
+    if [[ ! "$filename" =~ ^[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+$ ]]; then
+        message -cancel "Error: Nombre de archivo no válido: $filename"
+        return 1
+    fi
+    
     local extension="${filename##*.}"
     local name_without_ext="${filename%.*}"
     
+    # Validar extensión conocida
     case "$extension" in
-        "kt")
-            if ! command -v kotlinc &>/dev/null || ! command -v java &>/dev/null; then
-                message -cancel "Error: Kotlin o Java no están instalados."
-                return 1
-            fi
-            kotlinc "$filename" -include-runtime -d "${name_without_ext}.jar" && java -jar "${name_without_ext}.jar"
-        ;;
-        "java")
-            if ! command -v javac &>/dev/null || ! command -v java &>/dev/null; then
-                message -cancel "Error: Java no está instalado."
-                return 1
-            fi
-            javac "$filename" && java "$name_without_ext"
-        ;;
-        "cpp")
-            if ! command -v g++ &>/dev/null; then
-                message -cancel "Error: g++ no está instalado."
-                return 1
-            fi
-            g++ "$filename" -o "$name_without_ext" && "./$name_without_ext"
-        ;;
-        "c")
-            if ! command -v gcc &>/dev/null; then
-                message -cancel "Error: gcc no está instalado."
-                return 1
-            fi
-            gcc "$filename" -o "$name_without_ext" && "./$name_without_ext"
-        ;;
-        "pas")
-            if ! command -v fpc &>/dev/null; then
-                message -cancel "Error: Free Pascal Compiler (fpc) no está instalado."
-                return 1
-            fi
-            fpc "$filename" && "./$name_without_ext"
-        ;;
+        kt|java|cpp|c|pas)
+            # Extensiones válidas
+            ;;
         *)
             message -cancel "Error: Extensión de archivo no admitida: .$extension"
             return 1
-        ;;
+            ;;
     esac
+    
+    # Validar nombre de salida (sin espacios ni caracteres especiales)
+    if [[ ! "$name_without_ext" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+        message -cancel "Error: Nombre de archivo base no válido: $name_without_ext"
+        return 1
+    fi
+    
+    # Cambiar al directorio del archivo para evitar problemas de path
+    local original_dir
+    original_dir="$(pwd)"
+    local file_dir
+    file_dir="$(dirname "$abs_file")"
+    
+    cd "$file_dir" || {
+        message -cancel "Error: No se puede acceder al directorio del archivo."
+        return 1
+    }
+    
+    # Función para limpiar en caso de error
+    local cleanup_needed=false
+    cleanup_on_error() {
+        if [[ "$cleanup_needed" == true ]]; then
+            # Limpiar archivos temporales generados
+            rm -f "${name_without_ext}.class" "${name_without_ext}.o" "${name_without_ext}.jar" 2>/dev/null
+        fi
+        cd "$original_dir"
+    }
+    
+    trap cleanup_on_error EXIT ERR
+    
+    case "$extension" in
+        "kt")
+            if ! command -v kotlinc >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
+                message -cancel "Error: Kotlin o Java no están instalados."
+                return 1
+            fi
+            cleanup_needed=true
+            if kotlinc "$filename" -include-runtime -d "${name_without_ext}.jar" 2>/dev/null; then
+                java -jar "${name_without_ext}.jar"
+            else
+                message -cancel "Error: Falló la compilación de Kotlin."
+                return 1
+            fi
+            ;;
+        "java")
+            if ! command -v javac >/dev/null 2>&1 || ! command -v java >/dev/null 2>&1; then
+                message -cancel "Error: Java no está instalado."
+                return 1
+            fi
+            cleanup_needed=true
+            if javac "$filename" 2>/dev/null; then
+                java "$name_without_ext"
+            else
+                message -cancel "Error: Falló la compilación de Java."
+                return 1
+            fi
+            ;;
+        "cpp")
+            if ! command -v g++ >/dev/null 2>&1; then
+                message -cancel "Error: g++ no está instalado."
+                return 1
+            fi
+            cleanup_needed=true
+            if g++ "$filename" -o "$name_without_ext" 2>/dev/null; then
+                "./$name_without_ext"
+            else
+                message -cancel "Error: Falló la compilación de C++."
+                return 1
+            fi
+            ;;
+        "c")
+            if ! command -v gcc >/dev/null 2>&1; then
+                message -cancel "Error: gcc no está instalado."
+                return 1
+            fi
+            cleanup_needed=true
+            if gcc "$filename" -o "$name_without_ext" 2>/dev/null; then
+                "./$name_without_ext"
+            else
+                message -cancel "Error: Falló la compilación de C."
+                return 1
+            fi
+            ;;
+        "pas")
+            if ! command -v fpc >/dev/null 2>&1; then
+                message -cancel "Error: Free Pascal Compiler (fpc) no está instalado."
+                return 1
+            fi
+            cleanup_needed=true
+            if fpc "$filename" 2>/dev/null; then
+                "./$name_without_ext"
+            else
+                message -cancel "Error: Falló la compilación de Pascal."
+                return 1
+            fi
+            ;;
+    esac
+    
+    # Marcar que no hay error para que el cleanup no se ejecute
+    cleanup_needed=false
+    cd "$original_dir"
 }
 
 

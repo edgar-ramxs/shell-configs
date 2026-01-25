@@ -5,7 +5,7 @@ Instalación rápida y automatizada de configuraciones modernas para Bash/Zsh en
 ## 🚀 Instalación Rápida
 
 ```bash
-git clone https://github.com/tu-usuario/shell-configs.git
+git clone https://github.com/edgar-ramxs/shell-configs.git
 cd shell-configs
 bash setup.sh
 ```

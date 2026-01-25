@@ -116,13 +116,58 @@ DEPENDENCIES_MISSING=()
 detect_shell() {
     message -subtitle "Detectando shell actual..."
     
-    CURRENT_SHELL="${SHELL##*/}"
+    # Método 1: Variable SHELL (más confiable)
+    if [[ -n "${SHELL:-}" ]]; then
+        CURRENT_SHELL="${SHELL##*/}"
+        CURRENT_SHELL="${CURRENT_SHELL%% *}"  # Remover argumentos si existen
+    else
+        CURRENT_SHELL=""
+    fi
     
+    # Método 2: Probar comandos directamente (fallback)
+    if [[ -z "$CURRENT_SHELL" ]] || [[ "$CURRENT_SHELL" == "unknown" ]]; then
+        if [[ -n "${BASH_VERSION:-}" ]]; then
+            CURRENT_SHELL="bash"
+        elif [[ -n "${ZSH_VERSION:-}" ]]; then
+            CURRENT_SHELL="zsh"
+        elif command -v bash >/dev/null 2>&1 && [[ "$0" =~ bash ]]; then
+            CURRENT_SHELL="bash"
+        elif command -v zsh >/dev/null 2>&1 && [[ "$0" =~ zsh ]]; then
+            CURRENT_SHELL="zsh"
+        fi
+    fi
+    
+    # Validación final y asignación
     case "$CURRENT_SHELL" in
-        bash)   SHELL_DETECTED="bash"; message -success "Shell detectado: Bash";;
-        zsh)    SHELL_DETECTED="zsh";  message -success "Shell detectado: Zsh";;
-        *)      SHELL_DETECTED="unknown"; message -warning "Shell desconocido: $CURRENT_SHELL";;
+        bash)
+            SHELL_DETECTED="bash"
+            message -success "Shell detectado: Bash (v${BASH_VERSION:-unknown})"
+            ;;
+        zsh)
+            SHELL_DETECTED="zsh"
+            message -success "Shell detectado: Zsh (v${ZSH_VERSION:-unknown})"
+            ;;
+        *)
+            SHELL_DETECTED="unknown"
+            message -warning "Shell desconocido: $CURRENT_SHELL"
+            message -info "Intentando detectar automáticamente..."
+            
+            # Último intento: verificar ejecutables disponibles
+            if command -v bash >/dev/null 2>&1; then
+                SHELL_DETECTED="bash"
+                message -info "Bash encontrado, usando como fallback"
+            elif command -v zsh >/dev/null 2>&1; then
+                SHELL_DETECTED="zsh"
+                message -info "Zsh encontrado, usando como fallback"
+            else
+                message -error "No se encontró ningún shell compatible"
+                return 1
+            fi
+            ;;
     esac
+    
+    # Exportar variables útiles
+    export CURRENT_SHELL SHELL_DETECTED
 }
 
 detect_wsl2() {
@@ -195,38 +240,18 @@ install_github_dependencies() {
     
     sleep 2
     
-    # Parser TOML para sección [repositories]
+    # Parser TOML mejorado para sección [repositories]
     local repos=()
-    local in_section=false
     
-    while IFS= read -r line; do
-        # Detectar sección [repositories]
-        if [[ "$line" =~ ^\[repositories\]$ ]]; then
-            in_section=true
-            continue
-        fi
-        
-        # Si encontramos otra sección, terminar
-        if [[ "$line" =~ ^\[ ]] && [[ "$in_section" == true ]]; then
-            break
-        fi
-        
-        # Si estamos en la sección repositories
-        if [[ "$in_section" == true ]]; then
-            # Saltar líneas vacías
-            [[ -z "$line" ]] && continue
-            # Saltar comentarios puros
-            [[ "$line" =~ ^# ]] && continue
-            
-            # Extraer URL del repositorio (antes del # si existe)
-            local repo="${line%%#*}"
-            # Eliminar espacios en blanco
-            repo="$(echo "$repo" | xargs)"
-            
-            [[ -z "$repo" ]] && continue
-            repos+=("$repo")
-        fi
-    done < "$DEPS_FILE"
+    if ! parse_toml_section "$DEPS_FILE" "repositories" repos; then
+        message -error "No se pudo parsear la sección [repositories] de $DEPS_FILE"
+        return 1
+    fi
+    
+    message -info "Repositorios encontrados: ${#repos[@]}"
+    for repo in "${repos[@]}"; do
+        message -info "  - $repo"
+    done
     
     # Procesar cada repositorio
     local failed_repos=()
@@ -270,16 +295,38 @@ install_github_dependencies() {
             
             message -subtitle "Clonando $repo_name..."
             sleep 1
-            if git clone "$repo" "$target_dir" 2>/dev/null; then
-                # Validar que el clone fue exitoso verificando archivos clave
-                if [[ ! -d "$target_dir" ]] || [[ -z "$(ls -A "$target_dir" 2>/dev/null)" ]]; then
-                    message -error "✗ Clone completado pero directorio vacío: $target_dir"
-                    failed_repos+=("$repo_name")
-                    rm -rf "$target_dir"
-                    continue
-                fi
-                
-                message -success "✓ $repo_name instalado en $target_dir"
+            
+            # Clone con manejo de errores mejorado
+            local clone_output
+            local clone_result
+            
+            # Capturar salida para debugging
+            if ! clone_output=$(git clone "$repo" "$target_dir" 2>&1); then
+                message -error "✗ Error al clonar $repo_name desde $repo"
+                message -error "Detalles: $clone_output"
+                failed_repos+=("$repo_name")
+                # Limpiar directorio si se creó parcialmente
+                [[ -d "$target_dir" ]] && rm -rf "$target_dir"
+                continue
+            fi
+            
+            # Validar que el clone fue exitoso verificando archivos clave
+            if [[ ! -d "$target_dir" ]] || [[ -z "$(ls -A "$target_dir" 2>/dev/null)" ]]; then
+                message -error "✗ Clone completado pero directorio vacío: $target_dir"
+                failed_repos+=("$repo_name")
+                rm -rf "$target_dir"
+                continue
+            fi
+            
+            # Validación adicional: verificar que es un repositorio git válido
+            if [[ ! -f "$target_dir/.git" ]] && [[ ! -f "$target_dir/.git/config" ]]; then
+                message -error "✗ Clone completado pero no es un repositorio git válido: $target_dir"
+                failed_repos+=("$repo_name")
+                rm -rf "$target_dir"
+                continue
+            fi
+            
+            message -success "✓ $repo_name instalado en $target_dir"
                 
                 # Configurar automáticamente oh-my-zsh y oh-my-bash
                 case "$repo_name" in
@@ -330,38 +377,15 @@ install_github_dependencies() {
 check_linux_dependencies() {
     message -subtitle "Verificando paquetes de Linux..."
     
-    # Parser TOML simplificado: busca [linux] y extrae paquetes
+    # Parser TOML mejorado para sección [linux]
     local deps=()
-    local in_section=false
     
-    while IFS= read -r line; do
-        # Detectar sección [linux]
-        if [[ "$line" =~ ^\[linux\]$ ]]; then
-            in_section=true
-            continue
-        fi
-        
-        # Si encontramos otra sección, terminar
-        if [[ "$line" =~ ^\[ ]] && [[ "$in_section" == true ]]; then
-            break
-        fi
-        
-        # Si estamos en la sección linux
-        if [[ "$in_section" == true ]]; then
-            # Saltar líneas vacías
-            [[ -z "$line" ]] && continue
-            # Saltar comentarios puros
-            [[ "$line" =~ ^# ]] && continue
-            
-            # Extraer el nombre del paquete (antes del # si existe)
-            local pkg="${line%%#*}"
-            # Eliminar espacios en blanco
-            pkg="$(echo "$pkg" | xargs)"
-            
-            [[ -z "$pkg" ]] && continue
-            deps+=("$pkg")
-        fi
-    done < "$DEPS_FILE"
+    if ! parse_toml_section "$DEPS_FILE" "linux" deps; then
+        message -error "No se pudo parsear la sección [linux] de $DEPS_FILE"
+        return 1
+    fi
+    
+    message -info "Dependencias Linux encontradas: ${#deps[@]}"
     
     DEPENDENCIES_MISSING=()
     
@@ -729,16 +753,90 @@ backup_existing_files() {
             ;;
     esac
     
-    # Hacer backup de los archivos
+    # Hacer backup de los archivos con validación mejorada
+    local backup_errors=0
+    local backup_success=0
+    
     for item in "${items_to_backup[@]}"; do
         if [[ -e "$item" ]]; then
+            # Validar que el path sea seguro
+            if [[ "$item" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
+                message -warning "⚠ Path sospechoso omitido: $item"
+                ((backup_errors++))
+                continue
+            fi
+            
             local rel_path="${item#"$HOME"/}"
             local dest_path="$backup_dir/$rel_path"
-            mkdir -p "$(dirname "$dest_path")"
-            cp -r "$item" "$dest_path"
-            message -success "Backup: $rel_path"
+            local dest_dir
+            dest_dir="$(dirname "$dest_path")"
+            
+            # Crear directorio de destino con validación
+            if ! mkdir -p "$dest_dir" 2>/dev/null; then
+                message -error "✗ No se puede crear directorio para: $rel_path"
+                ((backup_errors++))
+                continue
+            fi
+            
+            # Realizar copia con validación
+            if [[ -d "$item" ]]; then
+                # Copiar directorio
+                if cp -r "$item" "$dest_path" 2>/dev/null; then
+                    # Validar que la copia fue exitosa
+                    if [[ -d "$dest_path" ]] && [[ "$(ls -A "$dest_path" 2>/dev/null)" ]]; then
+                        message -success "✓ Backup (directorio): $rel_path"
+                        ((backup_success++))
+                    else
+                        message -error "✗ Error al validar backup de directorio: $rel_path"
+                        ((backup_errors++))
+                        rm -rf "$dest_path" 2>/dev/null
+                    fi
+                else
+                    message -error "✗ Error al copiar directorio: $rel_path"
+                    ((backup_errors++))
+                fi
+            else
+                # Copiar archivo
+                if cp "$item" "$dest_path" 2>/dev/null; then
+                    # Validar que la copia fue exitosa
+                    if [[ -f "$dest_path" ]] && [[ -r "$dest_path" ]]; then
+                        local original_size
+                        local backup_size
+                        original_size=$(stat -f%z "$item" 2>/dev/null || stat -c%s "$item" 2>/dev/null || echo "0")
+                        backup_size=$(stat -f%z "$dest_path" 2>/dev/null || stat -c%s "$dest_path" 2>/dev/null || echo "0")
+                        
+                        if [[ "$original_size" -eq "$backup_size" ]] && [[ "$original_size" -gt 0 ]]; then
+                            message -success "✓ Backup (archivo): $rel_path"
+                            ((backup_success++))
+                        else
+                            message -error "✗ Error en tamaño de backup: $rel_path (orig: $original_size, backup: $backup_size)"
+                            ((backup_errors++))
+                            rm -f "$dest_path" 2>/dev/null
+                        fi
+                    else
+                        message -error "✗ Error al validar backup de archivo: $rel_path"
+                        ((backup_errors++))
+                        rm -f "$dest_path" 2>/dev/null
+                    fi
+                else
+                    message -error "✗ Error al copiar archivo: $rel_path"
+                    ((backup_errors++))
+                fi
+            fi
+        else
+            message -info "Archivo no encontrado, omitido: $item"
         fi
     done
+    
+    # Resumen del backup
+    if [[ $backup_success -gt 0 ]]; then
+        message -success "Backup completado: $backup_success archivos exitosos"
+    fi
+    
+    if [[ $backup_errors -gt 0 ]]; then
+        message -warning "Advertencia: $backup_errors errores durante el backup"
+        return 1
+    fi
     
     # Crear archivo de metadata
     cat > "$backup_dir/backup-info.txt" << EOF

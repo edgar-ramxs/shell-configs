@@ -29,10 +29,53 @@ shopt -s globstar
 
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
-export HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/bash/bash_history"
 
-# Asegurar directorio de historial
-mkdir -p "$(dirname "$HISTFILE")"
+# Configurar historial XDG-compliant de forma segura
+if [[ -n "${XDG_CACHE_HOME:-}" ]]; then
+    export HISTFILE="$XDG_CACHE_HOME/bash/bash_history"
+else
+    export HISTFILE="$HOME/.cache/bash/bash_history"
+fi
+
+# Asegurar directorio de historial con validación mejorada
+local hist_dir
+hist_dir="$(dirname "$HISTFILE")"
+
+if [[ ! -d "$hist_dir" ]]; then
+    # Crear directorio con permisos seguros
+    if mkdir -p "$hist_dir" 2>/dev/null; then
+        # Establecer permisos restrictivos (solo usuario)
+        chmod 700 "$hist_dir" 2>/dev/null || {
+            echo "Warning: No se pueden establecer permisos seguros para $hist_dir" >&2
+        }
+    else
+        # Fallback a directorio temporal si no se puede crear el directorio XDG
+        local fallback_hist="/tmp/bash_history_$$"
+        export HISTFILE="$fallback_hist"
+        echo "Warning: Usando historial temporal en $fallback_hist" >&2
+        echo "No se puede crear directorio de historial: $hist_dir" >&2
+    fi
+fi
+
+# Validar que el archivo de historial se puede escribir
+if [[ ! -f "$HISTFILE" ]]; then
+    if ! touch "$HISTFILE" 2>/dev/null; then
+        echo "Warning: No se puede crear archivo de historial: $HISTFILE" >&2
+        # Deshabilitar historial si no se puede escribir
+        unset HISTFILE
+        export HISTSIZE=0
+        export SAVEHIST=0
+    else
+        # Establecer permisos seguros para el archivo
+        chmod 600 "$HISTFILE" 2>/dev/null || true
+    fi
+elif [[ ! -w "$HISTFILE" ]]; then
+    echo "Warning: Archivo de historial no es escribible: $HISTFILE" >&2
+    # Deshabilitar historial si no se puede escribir
+    unset HISTFILE
+    export HISTSIZE=0
+    export SAVEHIST=0
+fi
 
 if ! shopt -oq posix; then
   if [ -f /usr/share/bash-completion/bash_completion ]; then
