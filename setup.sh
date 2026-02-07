@@ -10,73 +10,55 @@
 set -euo pipefail
 
 # ============================================================================
-# CONFIGURACIÓN XDG BASE DIRECTORY
-# ============================================================================
-
-# Función para configurar variables XDG si no están definidas
-setup_xdg_variables() {
-    # XDG_CONFIG_HOME - Directorio de configuraciones del usuario
-    export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-    
-    # XDG_DATA_HOME - Directorio de datos del usuario  
-    export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-    
-    # XDG_CACHE_HOME - Directorio de cache del usuario
-    export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-    
-    # XDG_STATE_HOME - Directorio de estado del usuario
-    export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
-    
-    # Informar al usuario
-    message -info "Variables XDG configuradas:"
-    message -info "  XDG_CONFIG_HOME: $XDG_CONFIG_HOME"
-    message -info "  XDG_DATA_HOME: $XDG_DATA_HOME"
-    message -info "  XDG_CACHE_HOME: $XDG_CACHE_HOME"
-}
-
-# ============================================================================
 # VARIABLES GLOBALES Y CONFIGURACIÓN
 # ============================================================================
+readonly BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly SCRIPT_DIR
-CONFIG_DIR="${SCRIPT_DIR}/config"
-readonly CONFIG_DIR
-SHELLS_DIR="${SCRIPT_DIR}/shells"
-readonly SHELLS_DIR
-BIN_DIR="${SCRIPT_DIR}/local/bin"
-readonly BIN_DIR
-DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
-readonly DEPS_FILE
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly CONFIG_DIR="${SCRIPT_DIR}/source/config"
+readonly SHELLS_DIR="${SCRIPT_DIR}/source/shells"
+readonly LOCALS_DIR="${SCRIPT_DIR}/source/local"
+readonly DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
 
-# Estas variables se establecerán después de setup_xdg_variables()
-TARGET_CONFIG_DIR=""
-TARGET_BACKUP_DIR=""
-TARGET_BIN_DIR=""
-BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-readonly BACKUP_TIMESTAMP
+readonly TARGET_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shells-configs"
+readonly TARGET_LOCALS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/shells-configs"
+readonly TARGET_BACKUP_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/shells-configs"
 
-# ============================================================================
-# IMPORTAR LIBRERÍA COMPARTIDA
-# ============================================================================
+DISTRO=""
+IS_WSL2=false
+CURRENT_SHELL=""
+SHELL_DETECTED="unknown"
+LINUX_DEPS_MISSING=()
+GITHUB_REPOS_MISSING=()
 
-# shellcheck disable=SC1091
-if ! source "${CONFIG_DIR}/lib.sh"; then
+if ! source "${CONFIG_DIR}/library"; then
     echo "Error: No se pudo cargar la librería compartida"
     exit 1
 fi
 
-# Configurar variables XDG antes de continuar
-setup_xdg_variables
+show_banner() {
+    local archivo_banner
+    local banner_name="${1:-banner.txt}"
+
+    archivo_banner="$SCRIPT_DIR/assets/console/$banner_name"
+
+    if [[ -f "$archivo_banner" ]]; then
+        echo -e "\e[1;34m"
+        cat "$archivo_banner"
+        echo -e "\e[0m"
+    else
+        message -error "Error: No se encontró el archivo $archivo_banner"
+        return 1
+    fi
+}
+
+# ============================================================================
+# CONFIGURACIÓN XDG BASE DIRECTORY
+# ============================================================================
 
 # Validar que los directorios XDG existan o puedan crearse
 validate_xdg_directories() {
-    local xdg_dirs=(
-        "$XDG_CONFIG_HOME"
-        "$XDG_DATA_HOME" 
-        "$XDG_CACHE_HOME"
-    )
-    
+    local xdg_dirs=("$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME")
     for dir in "${xdg_dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
             mkdir -p "$dir" || {
@@ -94,40 +76,23 @@ validate_xdg_directories || {
     exit 1
 }
 
-# Ahora que XDG está configurado y validado, establecer las variables readonly
-readonly TARGET_CONFIG_DIR="${XDG_CONFIG_HOME}/shell"
-readonly TARGET_BACKUP_DIR="${TARGET_CONFIG_DIR}/backups"
-readonly TARGET_BIN_DIR="${XDG_DATA_HOME}/bin"
-
-# ============================================================================
-# ESTADO DE INSTALACIÓN
-# ============================================================================
-
-CURRENT_SHELL=""
-IS_WSL2=false
-DISTRO=""
-SHELL_DETECTED="unknown"
-DEPENDENCIES_MISSING=()
-
 # ============================================================================
 # DETECCIÓN DEL SISTEMA
 # ============================================================================
 
 detect_shell() {
     message -subtitle "Detectando shell actual..."
-    
     CURRENT_SHELL="${SHELL##*/}"
-    
     case "$CURRENT_SHELL" in
         bash)   SHELL_DETECTED="bash"; message -success "Shell detectado: Bash";;
         zsh)    SHELL_DETECTED="zsh";  message -success "Shell detectado: Zsh";;
+        fish)   SHELL_DETECTED="fish"; message -success "Shell detectado: Fish";;
         *)      SHELL_DETECTED="unknown"; message -warning "Shell desconocido: $CURRENT_SHELL";;
     esac
 }
 
 detect_wsl2() {
     message -subtitle "Detectando entorno WSL2..."
-    
     if [[ -f /proc/version ]] && grep -qi "microsoft" /proc/version; then
         IS_WSL2=true
         message -success "Entorno WSL2 detectado"
@@ -138,10 +103,7 @@ detect_wsl2() {
 
 detect_distro() {
     message -subtitle "Detectando distribución Linux..."
-    
     if [[ -f /etc/os-release ]]; then
-        # Cargar variables de /etc/os-release
-        # shellcheck disable=SC1091
         source /etc/os-release
         DISTRO="${ID:-unknown}"
         message -success "Distribución detectada: ${PRETTY_NAME:-$DISTRO}"
@@ -153,12 +115,13 @@ detect_distro() {
 
 system_detection() {
     message -title "DETECCIÓN DEL SISTEMA"
+    sleep 1
     detect_shell
-    sleep 2
+    sleep 1
     detect_wsl2
-    sleep 2
+    sleep 1
     detect_distro
-    sleep 2
+    sleep 1
 }
 
 # ============================================================================
@@ -166,7 +129,7 @@ system_detection() {
 # ============================================================================
 
 parse_dependencies() {
-    message -title "LEYENDO CONFIGURACIÓN DE DEPENDENCIAS"
+    message -subtitle "LEYENDO CONFIGURACIÓN DE DEPENDENCIAS"
     sleep 2
     
     # Verificar archivo de dependencias
@@ -176,555 +139,240 @@ parse_dependencies() {
     fi
     
     message -success "Archivo de dependencias cargado: $DEPS_FILE"
-    message -info "Usando variables XDG:"
-    message -info "  Config: $XDG_CONFIG_HOME"
-    message -info "  Data: $XDG_DATA_HOME"
-}
-
-install_github_dependencies() {
-    message -title "INSTALANDO DEPENDENCIAS DE GITHUB"
-    
-    # Verificar que git está disponible
-    if ! command -v git &> /dev/null; then
-        message -error "git no está instalado. Por favor instálalo primero"
-        message -info "Usa: sudo apt-get install git  (para Debian/Ubuntu)"
-        message -info "     sudo pacman -S git        (para Arch)"
-        message -info "     sudo dnf install git      (para Fedora)"
-        return 1
-    fi
-    
-    sleep 2
-    
-    # Parser TOML para sección [repositories]
-    local repos=()
-    local in_section=false
-    
-    while IFS= read -r line; do
-        # Detectar sección [repositories]
-        if [[ "$line" =~ ^\[repositories\]$ ]]; then
-            in_section=true
-            continue
-        fi
-        
-        # Si encontramos otra sección, terminar
-        if [[ "$line" =~ ^\[ ]] && [[ "$in_section" == true ]]; then
-            break
-        fi
-        
-        # Si estamos en la sección repositories
-        if [[ "$in_section" == true ]]; then
-            # Saltar líneas vacías
-            [[ -z "$line" ]] && continue
-            # Saltar comentarios puros
-            [[ "$line" =~ ^# ]] && continue
-            
-            # Extraer URL del repositorio (antes del # si existe)
-            local repo="${line%%#*}"
-            # Eliminar espacios en blanco
-            repo="$(echo "$repo" | xargs)"
-            
-            [[ -z "$repo" ]] && continue
-            repos+=("$repo")
-        fi
-    done < "$DEPS_FILE"
-    
-    # Procesar cada repositorio
-    local failed_repos=()
-    for repo in "${repos[@]}"; do
-        local repo_name
-        repo_name=$(basename "$repo" .git)
-        local target_dir=""
-        
-        # Usar XDG_DATA_HOME o ~/.local/share como base
-        local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-        local shell_data_dir="$data_dir/shell"
-        
-        case "$repo_name" in
-            "ohmyzsh")
-                target_dir="$data_dir/oh-my-zsh"
-                ;;
-            "oh-my-bash")
-                target_dir="$data_dir/oh-my-bash"
-                ;;
-            "powerlevel10k")
-                # Powerlevel10k como plugin de oh-my-zsh
-                target_dir="$data_dir/oh-my-zsh/custom/themes/powerlevel10k"
-                ;;
-            *)
-                # Para repositorios desconocidos, usar directorio genérico
-                target_dir="$shell_data_dir/$repo_name"
-                message -info "Repositorio genérico: $repo_name -> $target_dir"
-                ;;
-        esac
-        
-        # Verificar si ya existe
-        if [[ -d "$target_dir" ]]; then
-            message -success "✓ $repo_name ya existe en $target_dir"
-        else
-            # Crear directorio padre si es necesario
-            mkdir -p "$(dirname "$target_dir")" || {
-                message -error "✗ No se puede crear directorio padre para $repo_name"
-                failed_repos+=("$repo_name")
-                continue
-            }
-            
-            message -subtitle "Clonando $repo_name..."
-            sleep 1
-            if git clone "$repo" "$target_dir" 2>/dev/null; then
-                # Validar que el clone fue exitoso verificando archivos clave
-                if [[ ! -d "$target_dir" ]] || [[ -z "$(ls -A "$target_dir" 2>/dev/null)" ]]; then
-                    message -error "✗ Clone completado pero directorio vacío: $target_dir"
-                    failed_repos+=("$repo_name")
-                    rm -rf "$target_dir"
-                    continue
-                fi
-                
-                message -success "✓ $repo_name instalado en $target_dir"
-                
-                # Configurar automáticamente oh-my-zsh y oh-my-bash
-                case "$repo_name" in
-                    "ohmyzsh")
-                        configure_oh_my_zsh "$target_dir"
-                        ;;
-                    "oh-my-bash")
-                        configure_oh_my_bash "$target_dir"
-                        ;;
-                    "powerlevel10k")
-                        # Powerlevel10k necesita configuración especial en .zshrc
-                        message -info "Powerlevel10k disponible para configurar con oh-my-zsh"
-                        ;;
-                esac
-                sleep 1
-            else
-                message -error "✗ Error al clonar $repo_name desde $repo"
-                failed_repos+=("$repo_name")
-            fi
-        fi
-    done
-    
-    # Resumen de repositorios
-    if [[ ${#failed_repos[@]} -gt 0 ]]; then
-        message -warning "Repositorios que no pudieron instalarse: ${failed_repos[*]}"
-        message -info "Verifica tu conexión a internet e intenta de nuevo"
-        return 1
-    fi
-    
-    # Verificar instalación de oh-my-zsh
-    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    if [[ -f "$data_dir/oh-my-zsh/oh-my-zsh.sh" ]]; then
-        message -success "✓ oh-my-zsh disponible (XDG-compliant)"
-    else
-        message -warning "✗ oh-my-zsh no encontrado (se instalará automáticamente)"
-        DEPENDENCIES_MISSING+=("github-repos")
-    fi
-    
-    # Verificar powerlevel10k (XDG-compliant)
-    if [[ -f "$data_dir/oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
-        message -success "✓ powerlevel10k disponible (XDG-compliant)"
-    else
-        message -warning "✗ powerlevel10k no encontrado (se instalará automáticamente)"
-        DEPENDENCIES_MISSING+=("github-repos")
-    fi
+    message -info "XDG Config: ${XDG_CONFIG_HOME:-$HOME/.config}"
+    message -info "XDG Data:   ${XDG_DATA_HOME:-$HOME/.local/share}"
 }
 
 check_linux_dependencies() {
-    message -subtitle "Verificando paquetes de Linux..."
-    
-    # Parser TOML simplificado: busca [linux] y extrae paquetes
+    message -subtitle "VERIFICANDO PAQUETES DE LINUX"
+    LINUX_DEPS_MISSING=()
     local deps=()
-    local in_section=false
-    
-    while IFS= read -r line; do
-        # Detectar sección [linux]
-        if [[ "$line" =~ ^\[linux\]$ ]]; then
-            in_section=true
+    local in_linux=false
+    local in_packages=false
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+
+        [[ -z "$line" || "$line" == \#* ]] && continue
+
+        if [[ "$line" == "[linux]" ]]; then
+            in_linux=true
             continue
         fi
-        
-        # Si encontramos otra sección, terminar
-        if [[ "$line" =~ ^\[ ]] && [[ "$in_section" == true ]]; then
+
+        if [[ "$line" == \[*\] && "$in_linux" == true ]]; then
             break
         fi
-        
-        # Si estamos en la sección linux
-        if [[ "$in_section" == true ]]; then
-            # Saltar líneas vacías
-            [[ -z "$line" ]] && continue
-            # Saltar comentarios puros
-            [[ "$line" =~ ^# ]] && continue
-            
-            # Extraer el nombre del paquete (antes del # si existe)
-            local pkg="${line%%#*}"
-            # Eliminar espacios en blanco
-            pkg="$(echo "$pkg" | xargs)"
-            
-            [[ -z "$pkg" ]] && continue
-            deps+=("$pkg")
+
+        if [[ "$in_linux" == true && "$line" == "packages = [" ]]; then
+            in_packages=true
+            continue
+        fi
+
+        if [[ "$in_packages" == true && "$line" == "]" ]]; then
+            break
+        fi
+
+        if [[ "$in_packages" == true && "$line" =~ \"([^\"]+)\" ]]; then
+            deps+=("${BASH_REMATCH[1]}")
         fi
     done < "$DEPS_FILE"
-    
-    DEPENDENCIES_MISSING=()
-    
+
     for dep in "${deps[@]}"; do
-        if check_command_exists "$dep"; then
-            message -success "✓ $dep disponible"
+        if command -v "$dep" >/dev/null 2>&1; then
+            message -success "$dep -> disponible"
         else
-            message -warning "✗ $dep no encontrado"
-            DEPENDENCIES_MISSING+=("$dep")
+            message -warning "$dep -> no encontrado"
+            LINUX_DEPS_MISSING+=("$dep")
         fi
     done
 }
 
 check_github_dependencies() {
-    message -subtitle "Verificando dependencias de GitHub..."
-    
-    # Verificar oh-my-zsh (XDG-compliant)
+    message -subtitle "VERIFICANDO REPOSITORIOS DE GITHUB"
+    GITHUB_REPOS_MISSING=()
     local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    local github_repos_needed=false
-    
-    if [[ -f "$data_dir/oh-my-zsh/oh-my-zsh.sh" ]]; then
-        export ZSH="$data_dir/oh-my-zsh"
-        message -success "✓ oh-my-zsh disponible (XDG-compliant)"
-    else
-        message -warning "✗ oh-my-zsh no encontrado (se instalará automáticamente)"
-        github_repos_needed=true
-    fi
-    
-    # Verificar powerlevel10k (XDG-compliant)
-    if [[ -f "$data_dir/oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
-        message -success "✓ powerlevel10k disponible (XDG-compliant)"
-    else
-        message -warning "✗ powerlevel10k no encontrado (se instalará automáticamente)"
-        github_repos_needed=true
-    fi
-    
-    # Agregar github-repos solo una vez si se necesita alguno
-    if [[ "$github_repos_needed" == true ]]; then
-        # Verificar que no esté ya en la lista
-        if [[ ! " ${DEPENDENCIES_MISSING[*]} " =~ " github-repos " ]]; then
-            DEPENDENCIES_MISSING+=("github-repos")
-            message -info "✓ Agregado github-repos a dependencias faltantes"
+    local repos_base="$data_dir/repositories"
+    local in_section=false
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" || "$line" =~ ^# ]] && continue
+
+        if [[ "$line" =~ ^\[repositories\]$ ]]; then
+            in_section=true
+            continue
         fi
-    fi
+
+        if [[ "$line" =~ ^\[ && "$in_section" == true ]]; then
+            break
+        fi
+
+        [[ "$in_section" != true ]] && continue
+
+        if [[ "$line" =~ name[[:space:]]*=[[:space:]]*\"([^\"]+)\" ]]; then
+            local name="${BASH_REMATCH[1]}"
+            local repo_dir="$repos_base/$name"
+
+            if [[ -d "$repo_dir/.git" ]]; then
+                message -success "$name -> disponible"
+            else
+                message -warning "$name -> no encontrado"
+                GITHUB_REPOS_MISSING+=("$name")
+            fi
+        fi
+    done < "$DEPS_FILE"
 }
 
 check_dependencies() {
     message -title "VERIFICACIÓN DE DEPENDENCIAS"
-    sleep 2
-    
+
     parse_dependencies || return 1
     check_linux_dependencies
     check_github_dependencies
-    
-    if [[ ${#DEPENDENCIES_MISSING[@]} -gt 0 ]]; then
-        message -warning "Dependencias faltantes: ${DEPENDENCIES_MISSING[*]}"
+
+    if [[ ${#LINUX_DEPS_MISSING[@]} -gt 0 ]] || [[ ${#GITHUB_REPOS_MISSING[@]} -gt 0 ]]; then
         return 1
-    else
-        message -success "Todas las dependencias verificadas"
-        return 0
     fi
+
+    return 0
 }
 
-install_dependencies() {
-    if [[ ${#DEPENDENCIES_MISSING[@]} -eq 0 ]]; then
-        message -info "No hay dependencias que instalar"
+install_linux_dependencies() {
+    if [[ ${#LINUX_DEPS_MISSING[@]} -eq 0 ]]; then
+        message -success "No hay paquetes de Linux pendientes"
         return 0
     fi
-    
-    message -title "INSTALACIÓN DE DEPENDENCIAS"
-    sleep 2
-    
-    # Primero instalar dependencias del sistema
-    local system_deps=()
-    local github_deps=false
-    
-    for dep in "${DEPENDENCIES_MISSING[@]}"; do
-        if [[ "$dep" == "github-repos" ]]; then
-            github_deps=true
-        else
-            system_deps+=("$dep")
-        fi
+    message -title "INSTALANDO PAQUETES DE LINUX"
+    sleep 1
+
+    local system_deps=("${LINUX_DEPS_MISSING[@]}")
+    local failed_packages=()
+    local successful_packages=()
+    local PKG_UPDATE_CMD=""
+    local PKG_INSTALL_CMD=""
+    local PKG_CHECK_CMD=""
+
+    case "$DISTRO" in
+        ubuntu|debian)
+            PKG_UPDATE_CMD="sudo apt update -qq"
+            PKG_INSTALL_CMD="sudo apt install -y"
+            PKG_CHECK_CMD="dpkg -l"
+            ;;
+        arch|manjaro)
+            PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
+            PKG_INSTALL_CMD="sudo pacman -S --noconfirm"
+            PKG_CHECK_CMD="pacman -Q"
+            ;;
+        fedora|rhel)
+            PKG_UPDATE_CMD="sudo dnf check-update"
+            PKG_INSTALL_CMD="sudo dnf install -y"
+            PKG_CHECK_CMD="dnf list installed"
+            ;;
+        *)
+            message -error "Distribución no soportada: $DISTRO"
+            message -warning "Instale manualmente: ${system_deps[*]}"
+            return 1
+            ;;
+    esac
+
+    # ------------------------------------------------------------
+    # Solicitar sudo una sola vez
+    # ------------------------------------------------------------
+    message -warning "Se requieren permisos de sudo"
+    local sudo_attempt=0
+    while (( sudo_attempt < 3 )); do
+        sudo -n true 2>/dev/null || sudo true && break
+        ((sudo_attempt++))
+        sleep 1
     done
-    
-    # Instalar dependencias del sistema
-    if [[ ${#system_deps[@]} -gt 0 ]]; then
-        message -warning "Se necesita permisos de sudo para instalar dependencias del sistema"
-        
-        # Solicitar sudo una sola vez al principio
-        local sudo_attempt=0
-        local sudo_max_attempts=3
-        
-        while (( sudo_attempt < sudo_max_attempts )); do
-            if sudo -n true 2>/dev/null; then
-                # Sudo sin contraseña disponible
-                break
+
+    if (( sudo_attempt >= 3 )); then
+        message -error "No se pudieron obtener permisos de sudo"
+        return 1
+    fi
+    message -success "Permisos de sudo obtenidos"
+
+    # ------------------------------------------------------------
+    # Actualizar repositorios
+    # ------------------------------------------------------------
+    if ! eval "$PKG_UPDATE_CMD" &>/dev/null; then
+        message -error "Error actualizando repositorios"
+        return 1
+    fi
+
+    # ------------------------------------------------------------
+    # Instalación de paquetes
+    # ------------------------------------------------------------
+    message -subtitle "Instalando paquetes..."
+    for dep in "${system_deps[@]}"; do
+        local pkg="$dep"
+        message -info "Instalando: $pkg"
+        if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
+            if command -v "$pkg" &>/dev/null || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
+                message -success "✓ Instalado: $dep"
+                successful_packages+=("$dep")
+            else
+                message -error "✗ Instalado pero no detectable: $pkg"
+                failed_packages+=("$dep")
             fi
-            
-            message -info "Solicitando permisos de sudo para instalación de paquetes... (intento $((sudo_attempt + 1))/$sudo_max_attempts)"
-            
-            if sudo true 2>/dev/null; then
-                # Sudo con contraseña disponible
-                break
-            fi
-            
-            ((sudo_attempt++))
-            
-            if (( sudo_attempt >= sudo_max_attempts )); then
-                message -error "No se pudieron obtener permisos de sudo después de $sudo_max_attempts intentos"
-                return 1
-            fi
-            
-            sleep 2
-        done
-        
-        message -success "Permisos de sudo obtenidos"
-        
-        # Instalar paquetes individualmente con actualización incluida
-        message -subtitle "Instalando paquetes individualmente..."
-        local failed_packages=()
-        local successful_packages=()
-        
-        case "$DISTRO" in
-            ubuntu|debian)
-                # Actualizar repos e instalar
-                if ! sudo apt update -qq; then
-                    message -error "Error actualizando repos apt"
-                    return 1
-                fi
-                
-                for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    if sudo apt install -y "$dep" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "$dep" &>/dev/null || dpkg -l | grep -q "^ii.*$dep"; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el comando no se encuentra: $dep"
-                            failed_packages+=("$dep")
-                        fi
-                    else
-                        message -error "✗ Falló: $dep"
-                        failed_packages+=("$dep")
-                    fi
-                    sleep 1
-                done
-                ;;
-                
-            arch|manjaro)
-                # Actualizar repos e instalar
-                if ! sudo pacman -Sy; then
-                    message -error "Error actualizando repos pacman"
-                    return 1
-                fi
-                
-                for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    # Mapeo especial para Arch
-                    local arch_pkg="$dep"
-                    case "$dep" in 
-                        "fd-find") arch_pkg="fd" ;;
-                    esac
-                    
-                    if sudo pacman -S --noconfirm "$arch_pkg" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "${arch_pkg%-*}" &>/dev/null || pacman -Q "$arch_pkg" &>/dev/null; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $arch_pkg"
-                            failed_packages+=("$dep")
-                        fi
-                    else
-                        message -error "✗ Falló: $dep"
-                        failed_packages+=("$dep")
-                    fi
-                    sleep 1
-                done
-                ;;
-                
-            fedora|rhel)
-                # Actualizar repos e instalar
-                if ! sudo dnf check-update; then
-                    message -error "Error actualizando repos dnf"
-                    return 1
-                fi
-                
-                for dep in "${system_deps[@]}"; do
-                    message -info "Instalando: $dep"
-                    # Mapeo especial para Fedora
-                    local fedora_pkg="$dep"
-                    case "$dep" in 
-                        "fd-find") fedora_pkg="fd-find" ;;
-                        "bat") fedora_pkg="bat" ;;
-                    esac
-                    
-                    if sudo dnf install -y "$fedora_pkg" 2>/dev/null; then
-                        # Validar que realmente se instaló
-                        if command -v "$fedora_pkg" &>/dev/null || dnf list installed "$fedora_pkg" &>/dev/null; then
-                            message -success "✓ Instalado: $dep"
-                            successful_packages+=("$dep")
-                        else
-                            message -error "✗ Instalación reportó éxito pero el paquete no se encuentra: $fedora_pkg"
-                            failed_packages+=("$dep")
-                        fi
-                    else
-                        message -error "✗ Falló: $dep"
-                        failed_packages+=("$dep")
-                    fi
-                    sleep 1
-                done
-                ;;
-                
-            *)
-                message -error "No se puede instalar automáticamente en $DISTRO"
-                message -warning "Por favor instale manualmente: ${system_deps[*]}"
-                return 1
-                ;;
-        esac
-        
-        # Resumen de instalación
-        if [[ ${#failed_packages[@]} -gt 0 ]]; then
-            message -warning "Paquetes fallidos: ${failed_packages[*]}"
+        else
+            message -error "✗ Falló: $dep"
+            failed_packages+=("$dep")
         fi
-        if [[ ${#successful_packages[@]} -gt 0 ]]; then
-            message -success "Paquetes instalados: ${successful_packages[*]}"
-        fi
-    fi
-    
-    # Instalar dependencias de GitHub
-    if [[ "$github_deps" == true ]]; then
-        install_github_dependencies || return 1
-    fi
-}
-# ============================================================================
-# CONFIGURACIÓN AUTOMÁTICA DE OH-MY SHELLS
-# ============================================================================
+        sleep 1
+    done
 
-configure_oh_my_zsh() {
-    # Parámetro recibido pero no necesario para esta implementación
-    # (se usa XDG_DATA_HOME directamente)
-    
-    message -subtitle "Configurando Oh My Zsh..."
-    
-    # Verificar si zsh está instalado
-    if ! command -v zsh &>/dev/null; then
-        message -warning "Zsh no está instalado. Instalando..."
-        case "$DISTRO" in
-            ubuntu|debian)
-                sudo apt install -y zsh || message -error "Error instalando zsh"
-                ;;
-            arch|manjaro)
-                sudo pacman -S --noconfirm zsh || message -error "Error instalando zsh"
-                ;;
-            fedora|rhel)
-                sudo dnf install -y zsh || message -error "Error instalando zsh"
-                ;;
-        esac
+    # ------------------------------------------------------------
+    # Resumen
+    # ------------------------------------------------------------
+    [[ ${#successful_packages[@]} -gt 0 ]] && \
+        message -success "Paquetes instalados: ${successful_packages[*]}"
+
+    if [[ ${#failed_packages[@]} -gt 0 ]]; then
+        message -warning "Paquetes que fallaron: ${failed_packages[*]}"
+        return 1
     fi
-    
-    # Configurar .zshrc para usar oh-my-zsh
-    local zshrc_path="$HOME/.zshrc"
-    
-    # Crear .zshrc con configuración de oh-my-zsh si no existe o está vacío
-    if [[ ! -f "$zshrc_path" ]] || [[ ! -s "$zshrc_path" ]]; then
-        cat > "$zshrc_path" << 'EOF'
-# Oh My Zsh Configuration
-export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-zsh"
-export ZDOTDIR="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
-ZSH_THEME="robbyrussell"
-plugins=(git)
 
-# Custom configurations (load before oh-my-zsh)
-if [[ -f "$HOME/.config/shell/exports" ]]; then
-    source "$HOME/.config/shell/exports"
-fi
-
-if [[ -f "$HOME/.config/shell/aliases" ]]; then
-    source "$HOME/.config/shell/aliases"
-fi
-
-if [[ -f "$HOME/.config/shell/functions" ]]; then
-    source "$HOME/.config/shell/functions"
-fi
-
-# Load Oh My Zsh
-if [[ -f "$ZSH/oh-my-zsh.sh" ]]; then
-    source "$ZSH/oh-my-zsh.sh"
-fi
-EOF
-        message -success "Configurado: ~/.zshrc para Oh My Zsh"
-    else
-        message -info "$HOME/.zshrc ya existe, conservando configuración existente"
-    fi
-    
-    # Cambiar shell a zsh si no es ya el default
-    if [[ "$SHELL" != */zsh ]]; then
-        message -info "Cambiando shell a zsh (ZDOTDIR: ${XDG_CONFIG_HOME:-$HOME/.config}/zsh)..."
-        chsh -s "$(which zsh)" || message -warning "No se pudo cambiar shell a zsh"
-    fi
-    
-    sleep 2
+    return 0
 }
 
-configure_oh_my_bash() {
-    # Parámetro recibido pero no necesario para esta implementación
-    # (se usa XDG_DATA_HOME directamente)
-    
-    message -subtitle "Configurando Oh My Bash..."
-    
-    # Configurar .bashrc para usar oh-my-bash
-    local bashrc_path="$HOME/.bashrc"
-    
-    # Hacer backup del .bashrc existente si no tiene oh-my-bash
-    if [[ -f "$bashrc_path" ]] && ! grep -q "oh-my-bash" "$bashrc_path"; then
-        cp "$bashrc_path" "${bashrc_path}.omb-backup-$(date +%Y%m%d_%H%M%S)"
-        message -info "Backup creado: ~/.bashrc.omb-backup"
-    fi
-    
-    # Crear nuevo .bashrc con oh-my-bash (directamente en ~/)
-    cat > "$bashrc_path" << 'EOF'
-# Oh My Bash Configuration
-export OSH="${XDG_DATA_HOME:-$HOME/.local/share}/oh-my-bash"
+install_github_dependencies() {
+    [[ ${#GITHUB_REPOS_MISSING[@]} -eq 0 ]] && {
+        message -success "No hay repositorios pendientes"
+        return 0
+    }
 
-# Custom configurations (loaded before oh-my-bash)
-if [[ -f "$HOME/.config/shell/exports" ]]; then
-    source "$HOME/.config/shell/exports"
-fi
+    message -title "INSTALANDO REPOSITORIOS DE GITHUB"
 
-if [[ -f "$HOME/.config/shell/aliases" ]]; then
-    source "$HOME/.config/shell/aliases"
-fi
+    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
+    local repos_base="$data_dir/repositories"
+    mkdir -p "$repos_base"
 
-if [[ -f "$HOME/.config/shell/functions" ]]; then
-    source "$HOME/.config/shell/functions"
-fi
+    for repo in "${GITHUB_REPOS_MISSING[@]}"; do
+        local url
+        url=$(grep -A5 "name *= *\"$repo\"" "$DEPS_FILE" \
+            | grep url \
+            | sed -E 's/.*"([^"]+)".*/\1/')
 
-# Load Oh My Bash themes
-if [[ -f "$OSH/themes/colours.theme.sh" ]]; then
-    source "$OSH/themes/colours.theme.sh"
-fi
+        [[ -z "$url" ]] && {
+            message -error "No se encontró URL para $repo"
+            continue
+        }
 
-if [[ -f "$OSH/themes/base.theme.sh" ]]; then
-    source "$OSH/themes/base.theme.sh"
-fi
-
-if [[ -f "$OSH/themes/prompt.theme.sh" ]]; then
-    source "$OSH/themes/prompt.theme.sh"
-fi
-
-# Oh My Bash initialization
-if [[ -f "$OSH/oh-my-bash.sh" ]]; then
-    source "$OSH/oh-my-bash.sh"
-fi
-EOF
-
-    message -success "Configurado: ~/.bashrc para Oh My Bash"
-    sleep 2
+        message -info "Clonando $repo..."
+        git clone "$url" "$repos_base/$repo" \
+            && message -success "$repo instalado" \
+            || message -error "Error instalando $repo"
+    done
 }
 
 # ============================================================================
+# CONFIGURACIÓN AUTOMÁTICA DE OH-MY-SHELLS
+# ============================================================================
 
+
+# ============================================================================
 # BACKUP
 # ============================================================================
 
@@ -834,17 +482,17 @@ install_scripts() {
     message -title "INSTALANDO SCRIPTS"
     sleep 2
     
-    mkdir -p "$TARGET_BIN_DIR"
+    mkdir -p "$TARGET_LOCALS_DIR"
     
     message -subtitle "Copiando scripts..."
     
-    if [[ -d "$BIN_DIR" ]]; then
-        for script in "$BIN_DIR"/*; do
+    if [[ -d "$LOCALS_DIR" ]]; then
+        for script in "$LOCALS_DIR"/*; do
             if [[ -f "$script" ]]; then
                 local script_name
                 script_name=$(basename "$script")
-                cp "$script" "$TARGET_BIN_DIR/$script_name"
-                chmod +x "$TARGET_BIN_DIR/$script_name"
+                cp "$script" "$TARGET_LOCALS_DIR/$script_name"
+                chmod +x "$TARGET_LOCALS_DIR/$script_name"
                 message -success "Script: $script_name"
             fi
         done
@@ -922,7 +570,7 @@ show_summary() {
     
     echo -e "${CYAN}Directorios:${RESET}"
     echo "  • Configuraciones: $TARGET_CONFIG_DIR"
-    echo "  • Scripts: $TARGET_BIN_DIR"
+    echo "  • Scripts: $TARGET_LOCALS_DIR"
     echo "  • Backups: $TARGET_BACKUP_DIR/$BACKUP_TIMESTAMP"
     echo ""
     
@@ -939,59 +587,62 @@ show_summary() {
 
 main() {
     clear
-    echo -e "${BOLD}${CYAN}"
-    cat << 'EOF'
-   ███████╗███████╗████████╗██╗   ██╗██████╗
-   ██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗
-   ███████╗█████╗     ██║   ██║   ██║██████╔╝
-   ╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝
-   ███████║███████╗   ██║   ╚██████╔╝██║
-   ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝
 
-        Shell Configuration Installer
-EOF
-    echo -e "${RESET}"
+    # Mostrar banner
+    show_banner
     
     # Ejecución de pasos principales
     system_detection
-    sleep 3
     
-    message -title "PASO 1: Verificación de dependencias"
-    sleep 2
+    # Verificar dependencias
     if ! check_dependencies; then
         message -info "Se detectaron dependencias faltantes. Intentando instalar automáticamente..."
-        install_dependencies || message -warning "No todas las dependencias pudieron ser instaladas"
-    fi
-    sleep 2
-    
-    message -title "PASO 2: Backup de configuraciones actuales"
-    backup_existing_files
-    sleep 2
-    
-    message -title "PASO 3: Instalando archivos de configuración"
-    install_config_files
-    sleep 2
-    
-    message -title "PASO 4: Instalando archivos de shell"
-    install_shell_rc_files
-    sleep 2
-    
-    message -title "PASO 5: Instalando scripts"
-    install_scripts
-    sleep 2
-    
-    if validate_installation; then
-        message -success "✓ Instalación completada exitosamente"
-    else
-        message -error "✗ Se encontraron errores durante la validación"
+
+        if [[ ${#LINUX_DEPS_MISSING[@]} -gt 0 ]]; then
+            message -info "Instalando paquetes de Linux faltantes..."
+            # install_linux_dependencies || message -warning "Algunos paquetes Linux fallaron"
+            message -info "Dependencias Linux no encontradas: ${#LINUX_DEPS_MISSING[@]}"
+        fi
+        sleep 2
+
+        if [[ ${#GITHUB_REPOS_MISSING[@]} -gt 0 ]]; then
+            message -info "Instalando repositorios GitHub faltantes..."
+            # install_github_dependencies || message -warning "Algunos repositorios fallaron"
+            message -info "Dependencias Github no encontradas: ${#GITHUB_REPOS_MISSING[@]}"
+        fi
+        sleep 2
+
     fi
     
-    show_summary
+    # message -title "PASO 2: Backup de configuraciones actuales"
+    # backup_existing_files
+    # sleep 2
     
-    echo ""
-    message -warning "Para aplicar los cambios, ejecute:"
-    echo -e "${CYAN}  source ~/.bashrc   # o${RESET}"
-    echo -e "${CYAN}  source ~/.zshrc    # según su shell${RESET}"
+    # message -title "PASO 3: Instalando archivos de configuración"
+    # install_config_files
+    # sleep 2
+    
+    # message -title "PASO 4: Instalando archivos de shell"
+    # install_shell_rc_files
+    # sleep 2
+    
+    # message -title "PASO 5: Instalando scripts"
+    # install_scripts
+    # sleep 2
+    
+    # if validate_installation; thencd
+    #     message -success "✓ Instalación completada exitosamente"
+    # else
+    #     message -error "✗ Se encontraron errores durante la validación"
+    # fi
+    
+    # show_summary
+    
+    # echo ""
+    # message -warning "Para aplicar los cambios, ejecute:"
+    # echo -e "${CYAN}  source ~/.bashrc   # o${RESET}"
+    # echo -e "${CYAN}  source ~/.zshrc    # según su shell${RESET}"
+    
     echo ""
 }
 

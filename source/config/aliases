@@ -1,0 +1,125 @@
+#!/bin/sh
+#     █████╗ ██╗     ██╗ █████╗ ███████╗███████╗███████╗
+#    ██╔══██╗██║     ██║██╔══██╗██╔════╝██╔════╝██╔════╝
+#    ███████║██║     ██║███████║███████╗█████╗  ███████╗
+#    ██╔══██║██║     ██║██╔══██║╚════██║██╔══╝  ╚════██║
+#    ██║  ██║███████╗██║██║  ██║███████║███████╗███████║
+#    ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+
+# aliases for common commands
+alias cls="clear"
+alias cll="clear; ls"
+alias cla="clear; ls -la"
+alias clf="clear; fetch"
+
+alias ls="lsd --group-dirs=first"
+alias la="lsd -a --group-dirs=first"
+alias ll="lsd -lh --group-dirs=first"
+alias lh="lsd -lha --group-dirs=first"
+
+alias cat="batcat"
+alias icat="kitty +kitten icat"
+alias clock="tty-clock -s -b -c -r"
+
+alias free="free -h"
+alias smki="sudo make clean install"
+alias myip="curl -s ifconfig.me/all.json | jq"
+alias grup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
+
+# edit config shell files
+alias rcfg-zshrc="$EDITOR $HOME/.zshrc"
+alias rcfg-bashrc="$EDITOR $HOME/.bashrc"
+alias rcfg-profile="$EDITOR $HOME/.profile"
+
+# reload command
+alias reload-zsh="source ~/.zshrc"
+alias reload-bash="source ~/.bashrc"
+alias reload-fonts="fc-cache -v -f"
+
+# permissions
+alias per-mx="chmod a+x"
+alias per-000="chmod 000"
+alias per-644="chmod 644"
+alias per-755="chmod 755"
+
+## flatpak
+alias ftki="flatpak install"
+alias ftks="flatpak search"
+alias ftkr="flatpak remove"
+alias ftku="flatpak update"
+
+# # nodejs
+# alias nrs="npm run start"
+# alias np="pnpm"
+
+# python venv
+alias venv-stop="deactivate"
+alias venv-start="source $(get-venv-name)/bin/activate"
+alias venv-name="basename \$(dirname \$(dirname \$(which python)))"
+alias venv-path="echo \$(dirname \$(dirname \$(which python)))"
+
+# db services [status|start|stop]
+alias ser-mys="sudo service mysql"
+alias ser-mgd="sudo service mongod"
+alias ser-pos="sudo service postgresql"
+alias ser-rds="sudo service redis-server"
+
+# system services
+alias sys-sto="sudo systemctl stop"
+alias sys-sta="sudo systemctl start"
+alias sys-stu="sudo systemctl status"
+alias sys-ena="sudo systemctl enable"
+alias sys-dis="sudo systemctl disable"
+alias sys-res="sudo systemctl restart"
+
+# create local servers
+alias server-php="php -S 0.0.0.0:8000"
+alias server-py="python -m http.server 8000"
+alias server-rs="cargo install basic-http-server && basic-http-server . -a 0.0.0.0 -p 8000"
+
+# rlcone alias
+alias gdrive-status='systemctl --user status rclone-gdrive.service'
+alias gdrive-logs='journalctl --user -u rclone-gdrive.service -f'
+alias gdrive-restart='systemctl --user restart rclone-gdrive.service'
+alias gdrive-stop='systemctl --user stop rclone-gdrive.service'
+alias gdrive-start='systemctl --user start rclone-gdrive.service'
+alias gdrive-enable='systemctl --user enable rclone-gdrive.service'
+alias gdrive-disable='systemctl --user disable rclone-gdrive.service'
+
+# rstudio server management
+alias rstudio-stop="sudo rstudio-server stop"
+alias rstudio-start="sudo rstudio-server start"
+alias rstudio-status="sudo rstudio-server status"
+alias rstudio-restart="sudo rstudio-server restart"
+alias rstudio-enable="sudo rstudio-server enable"
+alias rstudio-disable="sudo rstudio-server disable"
+
+# edit config variables files
+alias rcfg-aliases="$EDITOR $XDG_CONFIG_HOME/shell-configs/aliases"
+alias rcfg-exports="$EDITOR $XDG_CONFIG_HOME/shell-configs/exports"
+alias rcfg-functions="$EDITOR $XDG_CONFIG_HOME/shell-configs/functions"
+
+# edit config tilling windows manager
+alias rcfg-sxhkd="$EDITOR $XDG_CONFIG_HOME/sxhkd/sxhkdrc"
+alias rcfg-bspwm="$EDITOR $XDG_CONFIG_HOME/bspwm/bspwmrc"
+alias rcfg-kitty="$EDITOR $XDG_CONFIG_HOME/kitty/kitty.conf"
+alias rcfg-polybar="$EDITOR $XDG_CONFIG_HOME/polybar/config.ini"
+
+# # system commands arch-linux
+# alias updating="paru -Syu"
+# alias updating-aur="paru -Sua"
+# alias cleaning="paru -Sc && paru -c"
+# alias cleaning-deep="paru -Scc && paru -c"
+# alias searching="paru -Ss"
+# alias pkg-info="paru -Si"
+# alias pkg-list="paru -Qe"
+# alias pkg-list-orphans="paru -Qtdq"
+# alias pkg-remove="paru -R"
+# alias pkg-purge="paru -Rns"
+# alias pkg-purge-orphans="paru -Rns \$(paru -Qtdq)"
+
+# # update commands debian
+# alias updating="sudo apt update -y && sudo apt upgrade -y"
+# alias cleaning="sudo apt -y autoremove; sudo apt clean"
+# alias searching="sudo apt search"
+# alias fix-dpkg="sudo dpkg --configure -a; sudo apt --fix-broken install -y; sudo apt install -f; sudo apt update --fix-missing"

@@ -1,51 +1,118 @@
 # ============================================================================
 # Shell Config - Dependencias y Paquetes
 # ============================================================================
-# Formato: TOML simplificado para fácil parsing
-# Descripción: Define todas las dependencias necesarias para shell-configs
+# Formato: TOML para gestión de dependencias de shell-configs
 # 
 # Secciones:
-#   [linux]     - Paquetes del gestor de paquetes del SO
-#   [python]    - Paquetes de pip
-#   [rust]      - Paquetes de cargo
-#   [node]      - Paquetes de npm/yarn
-#   [go]        - Paquetes de go get
+#   [linux]        - Paquetes del gestor de paquetes del SO
+#   [python]       - Paquetes de pip
+#   [rust]         - Paquetes de cargo
+#   [node]         - Paquetes de npm/yarn
+#   [go]           - Paquetes de go install
 #   [repositories] - Repositorios git a clonar
-#
 # ============================================================================
 
-# Paquetes de sistemas Linux (apt, pacman, dnf)
+# ----------------------------------------------------------------------------
+# Paquetes Linux (apt, pacman, dnf)
 # Instalador automático: Detecta distro y usa el gestor correcto
+# ----------------------------------------------------------------------------
 [linux]
-git       # Version control
-curl      # URL transfer tool
-jq        # JSON processor
-lsd       # Modern ls replacement
-bat       # Better cat with syntax highlighting
-fzf       # Fuzzy finder
-ripgrep   # Fast grep alternative
-fd-find   # User-friendly find
-exa       # Modern ls with git support
-tldr      # Simplified man pages
+packages = [
+    "git",                     # Version control
+    "curl",                    # URL transfer tool
+    "jq",                      # JSON processor
+    "lsd",                     # Modern ls replacement
+    "bat",                     # Better cat with syntax highlighting
+    "fzf",                     # Fuzzy finder
+    "ripgrep",                 # Fast grep alternative
+    "fd-find",                 # User-friendly find
+    "exa",                     # Modern ls with git support
+    "tldr",                    # Simplified man pages
+    "zsh",                     # Z shell
+    "bash",                    # Bourne Again Shell
+    "nodejs",                  # Node.js runtime
+    "npm",                     # Node package manager
+    "python3",                 # Python 3 interpreter
+    "python3-pip",             # Python package manager
+    "rustc",                   # Rust compiler
+    "cargo",                   # Rust package manager
+    "build-essential",         # Compilation tools
+    "unzip",                   # Unzip utility
+    "wget",                    # Download utility
+    "tty-clock",               # Terminal clock
+    "neofetch",                # System info tool
+    "fastfetch",               # Fast system info tool
+    "vim",                     # Text editor
+    "bun",                     # Fast JavaScript runtime
+    "scrub",                   # Secure file deletion
+    "shred",                   # File shredding utility
+    "xclip",                   # Command line clipboard tool
+    "bc",                      # Command line calculator
+    "mpstat",                  # CPU usage monitoring tool
+    "htop",                    # Interactive process viewer
+    "btop",                    # Resource monitor
+    "starship",                # Cross-shell prompt
+]
 
+# ----------------------------------------------------------------------------
 # Paquetes Python (pip)
+# ----------------------------------------------------------------------------
 [python]
-pip       # Python package manager
-pipx      # Python application installer
+packages = [
+    "pip",          # Python package manager
+    "pipx",         # Python application installer
+    "setuptools",   # Package development and distribution
+    "virtualenv",   # Virtual environment manager
+    "pillow",       # Imaging library
+    "requests",     # HTTP library
+    "rembg",        # Background removal tool
+    "argparse"      # Command-line argument parsing library
+]
 
+# ----------------------------------------------------------------------------
 # Paquetes Rust (cargo)
+# ----------------------------------------------------------------------------
 [rust]
-cargo     # Rust package manager
+packages = [
+    "cargo",     # Rust package manager
+]
 
+# ----------------------------------------------------------------------------
 # Paquetes Node.js (npm/yarn)
+# ----------------------------------------------------------------------------
 [node]
-npm       # Node package manager
+packages = [
+    "@openai/codex",					        # OpenAI Codex CLI
+    "@google/gemini-cli",		                # Google Gemini CLI
+    "opencode-ai",					            # OpenCode AI CLI
+    "yarn",										# Yarn package manager
+    "bun",										# Bun JavaScript runtime
+    "pnpm",										# pnpm package manager
+    "deno",										# Deno runtime
+    "ts-node",									# TypeScript execution environment
+    "typescript",								# TypeScript language
+    "eslint",									# JavaScript linter
+    "prettier",									# Code formatter
+]
 
+# ----------------------------------------------------------------------------
 # Paquetes Go (go install)
+# ----------------------------------------------------------------------------
 [go]
+packages = []
 
-# Repositorios git a clonar
+# ----------------------------------------------------------------------------
+# Repositorios Git
+# ----------------------------------------------------------------------------
 [repositories]
-https://github.com/ohmyzsh/ohmyzsh.git            # oh-my-zsh para Zsh
-https://github.com/ohmybash/oh-my-bash.git        # oh-my-bash para Bash
-https://github.com/romkatv/powerlevel10k.git      # powerlevel10k para Zsh
+repos = [
+    { url = "https://github.com/ohmyzsh/ohmyzsh.git", name = "oh-my-zsh", description = "Framework para Zsh" },
+    { url = "https://github.com/ohmybash/oh-my-bash.git", name = "oh-my-bash", description = "Framework para Bash" },
+    { url = "https://github.com/romkatv/powerlevel10k.git", name = "powerlevel10k", description = "Tema para Zsh" },
+]
+
+[installers]
+scripts = [
+  { url = "https://starship.rs/install.sh", name = "starship", description = "Instalador de Starship Prompt" },
+  { url = "https://bun.sh/install" , name = "bun", description = "Instalador de Bun JavaScript Runtime" },
+]
