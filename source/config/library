@@ -413,28 +413,52 @@ lazy_load_function() {
         return 1
     fi
     
-    # Validar y normalizar path (prevenir directory traversal)
+    # Validación de seguridad mejorada del path
     local normalized_file
-    normalized_file=$(realpath "$source_file" 2>/dev/null) || {
+    local project_root
+    
+    # Determinar project root de forma segura
+    project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || {
+        message -error "lazy_load_function: no se puede determinar el project root"
+        return 1
+    }
+    
+    # Validar que el path no contiene patrones peligrosos
+    if [[ "$source_file" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
+        message -error "lazy_load_function: path contiene patrones peligrosos: $source_file"
+        return 1
+    fi
+    
+    # Convertir a path absoluto de forma segura
+    if [[ "$source_file" = /* ]]; then
+        normalized_file="$source_file"
+    else
+        normalized_file="$project_root/$source_file"
+    fi
+    
+    # Normalizar el path de forma segura
+    normalized_file="$(realpath -m "$normalized_file" 2>/dev/null)" || {
         message -error "lazy_load_function: path inválido: $source_file"
         return 1
     }
     
-    # Verificar que el archivo existe y es legible
+    # Verificar que el archivo existe, es regular y legible
     if [[ ! -f "$normalized_file" ]] || [[ ! -r "$normalized_file" ]]; then
         message -warning "lazy_load_function: archivo no encontrado o no legible: $normalized_file"
         return 1
     fi
     
-    # Verificar que es un archivo seguro (dentro del proyecto)
-    local project_root
-    project_root=$(realpath "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null) || {
-        message -error "lazy_load_function: no se puede determinar el project root"
-        return 1
-    }
-    
+    # Verificación de seguridad estricta: debe estar dentro del project root
     if [[ ! "$normalized_file" == "$project_root"* ]]; then
         message -error "lazy_load_function: archivo fuera del proyecto: $normalized_file"
+        return 1
+    fi
+    
+    # Verificar que el archivo es seguro (no contiene symlinks peligrosos)
+    local file_dir
+    file_dir="$(dirname "$normalized_file")"
+    if [[ -L "$file_dir" ]]; then
+        message -error "lazy_load_function: directorio padre es symlink: $file_dir"
         return 1
     fi
     
@@ -443,8 +467,13 @@ lazy_load_function() {
     '"$func_name"'() {
         # Descargar el stub
         unset -f '"$func_name"'
-        # Cargar la función real
-        source "'"$normalized_file"'"
+        # Cargar la función real de forma segura
+        if [[ -f "'"$normalized_file"'" ]] && [[ -r "'"$normalized_file"'" ]]; then
+            source "'"$normalized_file"'"
+        else
+            message -error "lazy_load_function: archivo ya no disponible: '"$normalized_file"'"
+            return 1
+        fi
         # Ejecutar la función con los argumentos originales
         '"$func_name"' "$@"
     }
@@ -605,6 +634,252 @@ validate_directory_exists() {
     for dir in "$@"; do
         [[ -d "$dir" ]] && return 0
     done
+    return 1
+}
+
+# ============================================================================
+# FUNCIÓN: parse_toml_section
+# ============================================================================
+# Parser TOML mejorado y seguro para extraer valores de una sección específica
+#
+# Argumentos:
+#   $1: Path del archivo TOML
+#   $2: Nombre de la sección (sin corchetes)
+#   $3: Variable de salida para el array de valores (opcional)
+#
+# Retorno:
+#   0: Éxito
+#   1: Error
+#
+# Ejemplo:
+#   parse_toml_section "deps.toml" "linux" deps_array
+#   echo "${deps_array[@]}"
+#
+# Salida directa (si no se especifica variable de salida):
+#   Imprime cada valor en una línea
+
+parse_toml_section() {
+    local toml_file="$1"
+    local section_name="$2"
+    local output_var="$3"
+    
+    # Validación de entrada
+    if [[ -z "$toml_file" ]] || [[ -z "$section_name" ]]; then
+        message -error "parse_toml_section: archivo y sección son requeridos"
+        return 1
+    fi
+    
+    # Validar que el archivo existe y es legible
+    if [[ ! -f "$toml_file" ]] || [[ ! -r "$toml_file" ]]; then
+        message -error "parse_toml_section: archivo no encontrado o no legible: $toml_file"
+        return 1
+    fi
+    
+    # Validar nombre de sección
+    if [[ ! "$section_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        message -error "parse_toml_section: nombre de sección inválido: $section_name"
+        return 1
+    fi
+    
+    # Variables locales
+    local in_section=false
+    local line_num=0
+    local values=()
+    
+    # Procesar archivo línea por línea
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        ((line_num++))
+        
+        # Eliminar espacios en blanco al inicio y final
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        
+        # Saltar líneas vacías
+        [[ -z "$line" ]] && continue
+        
+        # Detectar sección objetivo
+        if [[ "$line" =~ ^\[""$section_name""\]$ ]]; then
+            in_section=true
+            continue
+        fi
+        
+        # Si encontramos otra sección, terminar
+        if [[ "$line" =~ ^\[.+\]$ ]] && [[ "$in_section" == true ]]; then
+            break
+        fi
+        
+        # Procesar líneas dentro de la sección
+        if [[ "$in_section" == true ]]; then
+            # Saltar comentarios (desde # hasta final de línea)
+            if [[ "$line" =~ ^[[:space:]]*# ]]; then
+                continue
+            fi
+            
+            # Eliminar comentarios inline (después de # si no está entre comillas)
+            if [[ "$line" =~ ^[^#]*# ]]; then
+                # Verificar si el # está dentro de una cadena entrecomillada
+                local temp_line="${line%%#*}"
+                local quote_count
+                quote_count=$(grep -o '"' <<< "$temp_line" | wc -l)
+                
+                if (( quote_count % 2 == 0 )); then
+                    line="$temp_line"
+                fi
+            fi
+            
+            # Liminar espacios en blanco
+            line="${line#"${line%%[![:space:]]*}"}"
+            line="${line%"${line##*[![:space:]]}"}"
+            
+            # Saltar si quedó vacío después de limpiar
+            [[ -z "$line" ]] && continue
+            
+            # Validar que no sea una asignación (clave = valor)
+            if [[ "$line" =~ ^[a-zA-Z][a-zA-Z0-9_-]*[[:space:]]*= ]]; then
+                # Extraer valor después del =
+                local value="${line#*=}"
+                # Limpiar espacios y comillas
+                value="${value#"${value%%[![:space:]]*}"}"
+                value="${value%"${value##*[![:space:]]}"}"
+                value="${value#\"}"
+                value="${value%\"}"
+                value="${value#\'}"
+                value="${value%\'}"
+                [[ -n "$value" ]] && values+=("$value")
+            else
+                # Es un valor simple (solo el nombre del paquete/dependencia)
+                values+=("$line")
+            fi
+        fi
+    done < "$toml_file"
+    
+    # Manejo de salida
+    if [[ -n "$output_var" ]]; then
+        if declare -p "$output_var" 2>/dev/null | grep -q "declare -a"; then
+            # Asignar al array existente
+            eval "$output_var=(\"\${values[@]}\")"
+        else
+            # Crear nuevo array
+            declare -ga "$output_var=(\"\${values[@]}\")"
+        fi
+    else
+        # Imprimir valores
+        printf '%s\n' "${values[@]}"
+    fi
+    
+    return 0
+}
+
+# ============================================================================
+# FUNCIÓN: parse_toml_key_value
+# ============================================================================
+# Parser TOML para extraer un valor específico de una sección
+#
+# Argumentos:
+#   $1: Path del archivo TOML
+#   $2: Nombre de la sección
+#   $3: Nombre de la clave
+#   $4: Variable de salida (opcional)
+#
+# Retorno:
+#   0: Éxito
+#   1: Error o clave no encontrada
+#
+# Ejemplo:
+#   parse_toml_key_value "config.toml" "database" "host" db_host
+
+parse_toml_key_value() {
+    local toml_file="$1"
+    local section_name="$2"
+    local key_name="$3"
+    local output_var="$4"
+    
+    # Validación de entrada
+    if [[ -z "$toml_file" ]] || [[ -z "$section_name" ]] || [[ -z "$key_name" ]]; then
+        message -error "parse_toml_key_value: archivo, sección y clave son requeridos"
+        return 1
+    fi
+    
+    # Validar que el archivo existe
+    if [[ ! -f "$toml_file" ]] || [[ ! -r "$toml_file" ]]; then
+        message -error "parse_toml_key_value: archivo no encontrado o no legible: $toml_file"
+        return 1
+    fi
+    
+    # Validar nombres
+    if [[ ! "$section_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]] || [[ ! "$key_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        message -error "parse_toml_key_value: nombres inválidos"
+        return 1
+    fi
+    
+    local in_section=false
+    local line_num=0
+    
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        ((line_num++))
+        
+        # Limpiar línea
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+        
+        [[ -z "$line" ]] && continue
+        
+        # Detectar sección
+        if [[ "$line" =~ ^\[""$section_name""\]$ ]]; then
+            in_section=true
+            continue
+        fi
+        
+        # Salir si encontramos otra sección
+        if [[ "$line" =~ ^\[.+\]$ ]] && [[ "$in_section" == true ]]; then
+            break
+        fi
+        
+        # Procesar líneas en la sección
+        if [[ "$in_section" == true ]]; then
+            # Saltar comentarios
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            
+            # Buscar clave = valor
+            if [[ "$line" =~ ^[[:space:]]*"$key_name"[[:space:]]*= ]]; then
+                local value="${line#*=}"
+                # Limpiar valor
+                value="${value#"${value%%[![:space:]]*}"}"
+                value="${value%"${value##*[![:space:]]}"}"
+                
+                # Eliminar comentarios inline
+                if [[ "$value" =~ ^[^#]*# ]]; then
+                    local temp_value="${value%%#*}"
+                    local quote_count
+                    quote_count=$(grep -o '"' <<< "$temp_value" | wc -l)
+                    if (( quote_count % 2 == 0 )); then
+                        value="$temp_value"
+                    fi
+                fi
+                
+                value="${value#"${value%%[![:space:]]*}"}"
+                value="${value%"${value##*[![:space:]]}"}"
+                
+                # Quitar comillas
+                value="${value#\"}"
+                value="${value%\"}"
+                value="${value#\'}"
+                value="${value%\'}"
+                
+                # Asignar o imprimir valor
+                if [[ -n "$output_var" ]]; then
+                    printf -v "$output_var" '%s' "$value"
+                else
+                    printf '%s\n' "$value"
+                fi
+                
+                return 0
+            fi
+        fi
+    done < "$toml_file"
+    
+    # Clave no encontrada
+    message -warning "parse_toml_key_value: clave '$key_name' no encontrada en sección '$section_name'"
     return 1
 }
 

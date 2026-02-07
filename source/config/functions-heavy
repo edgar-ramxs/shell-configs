@@ -168,46 +168,48 @@ function crypto-rate() {
 # ============================================================================
 
 function initialize-git-repo() {
-    local dir="$(pwd)"
-    local repo_name=""
-    local remote_url=""
-    local branch="main"
-    local readme_message=""
+  # Inicializa un repositorio git con configuración básica
+  # Uso: initialize-git-repo -n <nombre> [-m <mensaje>] [-r <remote>] [-b <branch>]
+  local dir="$(pwd)"
+  local repo_name=""
+  local remote_url=""
+  local branch="main"
+  local readme_message=""
 
-    while getopts "n:r:b:m:" opt; do
-        case $opt in
-            n) repo_name="$OPTARG" ;;      # Nombre del repositorio
-            r) remote_url="$OPTARG" ;;     # URL del repositorio remoto (opcional)
-            b) branch="$OPTARG" ;;         # Rama a la que se hará push (opcional)
-            m) readme_message="$OPTARG" ;; # Mensaje para el README.md (opcional)
-            \?) echo "Uso: initialize_git_repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
-            return 1 ;;
-        esac
-    done
-    
-    if [[ -z "$repo_name" ]]; then
-        echo "Error: Debes proporcionar un nombre para el repositorio con -n."
-        return 1
-    fi
+  while getopts "n:r:b:m:" opt; do
+    case $opt in
+      n) repo_name="$OPTARG" ;;      # Nombre del repositorio
+      r) remote_url="$OPTARG" ;;     # URL del repositorio remoto (opcional)
+      b) branch="$OPTARG" ;;         # Rama a la que se hará push (opcional)
+      m) readme_message="$OPTARG" ;; # Mensaje para el README.md (opcional)
+      \?) echo "Uso: initialize-git-repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
+        return 1 ;;
+    esac
+  done
+  
+  if [[ -z "$repo_name" ]]; then
+    echo "Error: Debes proporcionar un nombre para el repositorio con -n."
+    return 1
+  fi
 
-    mkdir -p "$repo_name" && cd "$repo_name" || return 1
-    
-    git init >/dev/null 2>&1
-    echo -e ".vscode/" > .gitignore
-    echo "# $repo_name" > README.md
-    echo "$readme_message" >> README.md
+  mkdir -p "$repo_name" && cd "$repo_name" || return 1
+  
+  git init >/dev/null 2>&1
+  echo -e ".vscode/" > .gitignore
+  echo "# $repo_name" > README.md
+  echo "$readme_message" >> README.md
 
-    git add .
-    git commit -m "Initial commit" >/dev/null 2>&1
-    
-    if [[ -n "$remote_url" ]]; then
-        git remote add origin "$remote_url"
-        git branch -M "$branch"
-        git push -u origin "$branch"
-    fi
-    
-    cd $dir
-    echo "Repositorio '$repo_name' inicializado correctamente."
+  git add .
+  git commit -m "Initial commit" >/dev/null 2>&1
+  
+  if [[ -n "$remote_url" ]]; then
+    git remote add origin "$remote_url"
+    git branch -M "$branch"
+    git push -u origin "$branch"
+  fi
+  
+  cd "$dir"
+  echo "Repositorio '$repo_name' inicializado correctamente."
 }
 
 # ============================================================================

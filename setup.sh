@@ -89,6 +89,9 @@ detect_shell() {
         fish)   SHELL_DETECTED="fish"; message -success "Shell detectado: Fish";;
         *)      SHELL_DETECTED="unknown"; message -warning "Shell desconocido: $CURRENT_SHELL";;
     esac
+    
+    # Exportar variables útiles
+    export CURRENT_SHELL SHELL_DETECTED
 }
 
 detect_wsl2() {
@@ -381,41 +384,134 @@ backup_existing_files() {
     sleep 2
     
     mkdir -p "$TARGET_BACKUP_DIR"
-    local backup_dir="${TARGET_BACKUP_DIR}/${BACKUP_TIMESTAMP}"
+    # Estructura de backup: backups/{DISTRO}/{SHELL_DETECTED}/{TIMESTAMP}
+    local backup_dir="${TARGET_BACKUP_DIR}/${DISTRO}/${SHELL_DETECTED}/${BACKUP_TIMESTAMP}"
     mkdir -p "$backup_dir"
     
     message -subtitle "Guardando archivos existentes..."
+    message -info "Backup por distro: $DISTRO, shell: $SHELL_DETECTED"
     
-    # Archivos a hacer backup (solo ~/ y configs del proyecto)
-    local items_to_backup=(
-        "$HOME/.bashrc"
-        "$HOME/.zshrc"
-        "$HOME/.bash_logout"
-        "$HOME/.p10k.zsh"
+    # Archivos a hacer backup (solo los relevantes para la shell detectada)
+    local items_to_backup=()
+    
+    # Archivos comunes a ambas shells
+    items_to_backup+=(
         "$TARGET_CONFIG_DIR/aliases"
         "$TARGET_CONFIG_DIR/exports"
         "$TARGET_CONFIG_DIR/functions"
     )
     
+    # Archivos específicos de la shell detectada
+    case "$SHELL_DETECTED" in
+        bash)
+            items_to_backup+=(
+                "$HOME/.bashrc"
+                "$HOME/.bash_logout"
+            )
+            ;;
+        zsh)
+            items_to_backup+=(
+                "$HOME/.zshrc"
+                "$HOME/.p10k.zsh"
+            )
+            ;;
+    esac
+    
+    # Hacer backup de los archivos con validación mejorada
+    local backup_errors=0
+    local backup_success=0
+    
     for item in "${items_to_backup[@]}"; do
         if [[ -e "$item" ]]; then
+            # Validar que el path sea seguro
+            if [[ "$item" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
+                message -warning "⚠ Path sospechoso omitido: $item"
+                ((backup_errors++))
+                continue
+            fi
+            
             local rel_path="${item#"$HOME"/}"
             local dest_path="$backup_dir/$rel_path"
-            mkdir -p "$(dirname "$dest_path")"
-            cp -r "$item" "$dest_path"
-            message -success "Backup: $rel_path"
+            local dest_dir
+            dest_dir="$(dirname "$dest_path")"
+            
+            # Crear directorio de destino con validación
+            if ! mkdir -p "$dest_dir" 2>/dev/null; then
+                message -error "✗ No se puede crear directorio para: $rel_path"
+                ((backup_errors++))
+                continue
+            fi
+            
+            # Realizar copia con validación
+            if [[ -d "$item" ]]; then
+                # Copiar directorio
+                if cp -r "$item" "$dest_path" 2>/dev/null; then
+                    # Validar que la copia fue exitosa
+                    if [[ -d "$dest_path" ]] && [[ "$(ls -A "$dest_path" 2>/dev/null)" ]]; then
+                        message -success "✓ Backup (directorio): $rel_path"
+                        ((backup_success++))
+                    else
+                        message -error "✗ Error al validar backup de directorio: $rel_path"
+                        ((backup_errors++))
+                        rm -rf "$dest_path" 2>/dev/null
+                    fi
+                else
+                    message -error "✗ Error al copiar directorio: $rel_path"
+                    ((backup_errors++))
+                fi
+            else
+                # Copiar archivo
+                if cp "$item" "$dest_path" 2>/dev/null; then
+                    # Validar que la copia fue exitosa
+                    if [[ -f "$dest_path" ]] && [[ -r "$dest_path" ]]; then
+                        local original_size
+                        local backup_size
+                        original_size=$(stat -f%z "$item" 2>/dev/null || stat -c%s "$item" 2>/dev/null || echo "0")
+                        backup_size=$(stat -f%z "$dest_path" 2>/dev/null || stat -c%s "$dest_path" 2>/dev/null || echo "0")
+                        
+                        if [[ "$original_size" -eq "$backup_size" ]] && [[ "$original_size" -gt 0 ]]; then
+                            message -success "✓ Backup (archivo): $rel_path"
+                            ((backup_success++))
+                        else
+                            message -error "✗ Error en tamaño de backup: $rel_path (orig: $original_size, backup: $backup_size)"
+                            ((backup_errors++))
+                            rm -f "$dest_path" 2>/dev/null
+                        fi
+                    else
+                        message -error "✗ Error al validar backup de archivo: $rel_path"
+                        ((backup_errors++))
+                        rm -f "$dest_path" 2>/dev/null
+                    fi
+                else
+                    message -error "✗ Error al copiar archivo: $rel_path"
+                    ((backup_errors++))
+                fi
+            fi
+        else
+            message -info "Archivo no encontrado, omitido: $item"
         fi
     done
+    
+    # Resumen del backup
+    if [[ $backup_success -gt 0 ]]; then
+        message -success "Backup completado: $backup_success archivos exitosos"
+    fi
+    
+    if [[ $backup_errors -gt 0 ]]; then
+        message -warning "Advertencia: $backup_errors errores durante el backup"
+        return 1
+    fi
     
     # Crear archivo de metadata
     cat > "$backup_dir/backup-info.txt" << EOF
 Backup creado: $(date '+%Y-%m-%d %H:%M:%S')
 Timestamp: $BACKUP_TIMESTAMP
 Sistema: $(uname -s)
-Distro: $(lsb_release -ds 2>/dev/null || echo "Unknown")
+Distro: $(lsb_release -ds 2>/dev/null || echo "$DISTRO")
 Shell: $SHELL_DETECTED
 Hostname: $(hostname)
 Usuario: $(whoami)
+Ruta del backup: $backup_dir
 EOF
     
     message -success "Backup guardado en: $backup_dir"
@@ -447,35 +543,46 @@ install_shell_rc_files() {
     message -title "INSTALANDO ARCHIVOS DE SHELL RC"
     sleep 2
     
-    message -subtitle "Instalando archivos de shell desde shells/..."
+    message -subtitle "Instalando archivos de shell detectado: $SHELL_DETECTED"
     
-    # Instalar archivos Bash (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.bashrc" ]] && cp "$HOME/.bashrc" "$HOME/.bashrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/bash/.bashrc" "$HOME/.bashrc"
-        message -success "Instalado: ~/.bashrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/bash/.bash_logout" ]]; then
-        cp "$SHELLS_DIR/bash/.bash_logout" "$HOME/.bash_logout"
-        message -success "Instalado: ~/.bash_logout"
-    fi
-    
-    # Instalar archivos Zsh (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/zsh/.zshrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$HOME/.zshrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/zsh/.zshrc" "$HOME/.zshrc"
-        message -success "Instalado: ~/.zshrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/zsh/.p10k.zsh" ]]; then
-        cp "$SHELLS_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
-        message -success "Instalado: ~/.p10k.zsh"
-    fi
+    case "$SHELL_DETECTED" in
+        bash)
+            # Instalar solo archivos Bash
+            if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
+                cp "$SHELLS_DIR/bash/.bashrc" "$HOME/.bashrc"
+                message -success "Instalado: ~/.bashrc"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/bash/.bashrc"
+            fi
+            
+            if [[ -f "$SHELLS_DIR/bash/.bash_logout" ]]; then
+                cp "$SHELLS_DIR/bash/.bash_logout" "$HOME/.bash_logout"
+                message -success "Instalado: ~/.bash_logout"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/bash/.bash_logout"
+            fi
+            ;;
+        zsh)
+            # Instalar solo archivos Zsh
+            if [[ -f "$SHELLS_DIR/zsh/.zshrc" ]]; then
+                cp "$SHELLS_DIR/zsh/.zshrc" "$HOME/.zshrc"
+                message -success "Instalado: ~/.zshrc"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/zsh/.zshrc"
+            fi
+            
+            if [[ -f "$SHELLS_DIR/zsh/.p10k.zsh" ]]; then
+                cp "$SHELLS_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
+                message -success "Instalado: ~/.p10k.zsh"
+            else
+                message -warning "Archivo no encontrado: $SHELLS_DIR/zsh/.p10k.zsh"
+            fi
+            ;;
+        *)
+            message -error "Shell desconocida detectada: $SHELL_DETECTED"
+            message -info "No se instalarán archivos de shell RC"
+            ;;
+    esac
 }
 
 install_scripts() {
