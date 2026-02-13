@@ -60,15 +60,6 @@ export SUDO_PROMPT="[󱕴] Password [󱕴]: "
 export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
 
 # ============================================================================
-# RUTAS XDG (FREEDESKTOP STANDARD)
-# ============================================================================
-
-export XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME/.cache"}
-export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
-export XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
-export XDG_STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
-
-# ============================================================================
 # PATH - CONSTRUCCIÓN CENTRALIZADA Y OPTIMIZADA
 # ============================================================================
 
@@ -164,19 +155,6 @@ if [[ -d "$HOME/.docker/bin" ]]; then
     _PATH_COMPONENTS+=("$HOME/.docker/bin")
 fi
 
-# Agregar Visual Studio Code (opencode) si está disponible
-if [[ -d "$HOME/.opencode/bin" ]]; then
-    _PATH_COMPONENTS+=("$HOME/.opencode/bin")
-fi
-
-# Agregar GitHub Copilot CLI si está disponible
-if [[ -d "$HOME/.config/Code/User/globalStorage/github.copilot-chat" ]]; then
-    _PATH_COMPONENTS+=(
-        "$HOME/.config/Code/User/globalStorage/github.copilot-chat/debugCommand"
-        "$HOME/.config/Code/User/globalStorage/github.copilot-chat/copilotCli"
-    )
-fi
-
 # Construir PATH final sin duplicados
 export PATH=$(IFS=':' ; echo "${_PATH_COMPONENTS[*]}:$PATH" | tr ':' '\n' | awk '!a[$0]++' | paste -sd: -)
 
@@ -201,23 +179,6 @@ fi
 if command -v zsh &>/dev/null; then
     export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 fi
-
-# ============================================================================
-# DIRECTORIOS DE HERRAMIENTAS ESPECÍFICAS
-# ============================================================================
-
-# Node Version Manager (NVM)
-export NVM_DIR="$HOME/.nvm"
-
-# Bun package manager
-export BUN_INSTALL="$HOME/.bun"
-
-# PyEnv
-export PYENV_ROOT="$HOME/.pyenv"
-
-# Rustup
-export RUSTUP_HOME="$HOME/.rustup"
-export CARGO_HOME="$HOME/.cargo"
 
 # ============================================================================
 # CONFIGURACIÓN AVANZADA (COMENTADA - DESCOMENTA SI NECESITAS)

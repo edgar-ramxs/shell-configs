@@ -1,68 +1,86 @@
-# Shell Configurations - Setup Automático
+# Shell Configurations Repository
 
-Instalación rápida y automatizada de configuraciones modernas para Bash/Zsh en Linux.
+Configuraciones modernas y optimizadas para Bash/Zsh con instalación automatizada, validación de dependencias y soporte multi-distribución.
 
-## 🚀 Instalación Rápida
+## 🚀 Inicio Rápido
 
 ```bash
-git clone https://github.com/edgar-ramxs/shell-configs.git
-cd shell-configs
 bash setup.sh
 ```
 
-Luego, recarga tu shell:
-```bash
-source ~/.bashrc    # Para Bash
-# o
-source ~/.zshrc     # Para Zsh
-```
-
-## ✨ Qué Instala
-
-- **Shells Modernos:** Bash y Zsh optimizados
-- **Frameworks:** Oh-My-Zsh, Oh-My-Bash, Powerlevel10k
-- **Herramientas:** git, curl, jq, lsd, bat, fzf, ripgrep, fd, exa, tldr
-- **Configuraciones:** Aliases, funciones, variables de entorno
-- **Scripts Útiles:** check-deps, shell-config, download-fonts, ytdlp_downloader
-
 ## 📚 Documentación
 
-La documentación detallada está en la carpeta `docs/`:
+**Toda la documentación está organizada en la carpeta [`docs/`](docs/).**
 
-| Archivo | Propósito |
-|---------|-----------|
-| **docs/AGENTS.md** | Guía para agentes IA y mantenimiento del proyecto |
-| **docs/ARCHITECTURE.md** | Estructura técnica y componentes |
-| **docs/PROCESSES.md** | Procesos clave y flujos de instalación |
-| **docs/TROUBLESHOOTING.md** | Solución de problemas comunes |
-| **docs/REFERENCE.md** | Referencia rápida de comandos |
-| **docs/PROJECT_STATUS.md** | Roadmap y estado del proyecto |
+👉 **[Comienza aquí: docs/README.md](docs/README.md)** - Guía de navegación completa
 
-## 🔧 Comandos Útiles
+### Para Agentes de IA y Continuidad del Proyecto
 
-```bash
-# Verificar dependencias
-check-deps
+Lee estos archivos en este orden:
+1. **[docs/AGENTS.md](docs/AGENTS.md)** - Guía completa del proyecto (COMIENZA AQUÍ)
+2. **[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md)** - Validación de código y correcciones
+3. **[docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** - Estado actual y roadmap (Fases 6-9)
 
-# Gestionar configuraciones
-shell-config backup          # Crear backup
-shell-config restore <date>  # Restaurar
+## 📋 Características
 
-# Ver más opciones
-shell-config help
+- ✨ Configuraciones optimizadas para Bash y Zsh
+- 🚀 Instalación automatizada multiplataforma
+- ⚡ Rendimiento optimizado (<10ms startup)
+- 🔄 Gestión inteligente de dependencias
+- 💾 Backups automáticos de configuración
+- 🛠️ Herramientas de terminal incluidas (lsd, bat, fzf, ripgrep, etc.)
+- 📦 Funciones útiles precargadas
+- 🎨 Salida formateada y legible
+
+## 📁 Estructura del Proyecto
+
+```
+shell-configs/
+├── README.md              # Este archivo (inicio rápido)
+├── setup.sh              # Script de instalación principal
+├── config/               # Archivos de configuración
+├── local/                # Herramientas y scripts locales
+├── shells/               # Configuraciones de shells (bash, zsh)
+└── docs/                 # Documentación completa
+    ├── README.md         # Guía de navegación
+    ├── AGENTS.md         # Guía para agentes de IA
+    ├── CODE_REVIEW.md    # Análisis de código
+    ├── PROJECT_STATUS.md # Estado y roadmap
+    └── PHASE_*.md        # Reportes de cada fase
 ```
 
-## 📋 Requisitos
+## 🔧 Configuración Rápida
 
-- Linux (Debian/Ubuntu, Arch, o Fedora)
-- Bash o Zsh
-- Git instalado
-- Acceso a sudo (para instalar paquetes)
+### Verificar Dependencias
 
-## 🐛 ¿Problemas?
+```bash
+check-deps                  # Ver estado
+check-deps --install        # Instalar faltantes
+```
 
-Consulta **docs/TROUBLESHOOTING.md** para soluciones comunes.
+### Gestionar Configuración
+
+```bash
+shell-config backup         # Crear backup
+shell-config restore <date> # Restaurar backup
+shell-config copy           # Desplegar config
+```
+
+## 🐛 Ayuda
+
+- **[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Solución de problemas
+- **[docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Referencia rápida de comandos
+
+## 📝 Más Información
+
+Para documentación completa, ejemplos detallados y guías paso a paso, consulta la carpeta [`docs/`](docs/).
 
 ---
 
-**Status:** ✅ Listo para producción | **Última actualización:** Enero 2026
+**Versión:** 5.0  
+**Estado:** ✅ Listo para producción  
+**Última actualización:** Enero 2026
+
+
+
+            { name = "bun", description = "Fast JavaScript runtime" },

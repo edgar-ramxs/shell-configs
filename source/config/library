@@ -9,22 +9,19 @@
 # Este archivo contiene funciones comunes que pueden ser utilizadas por
 # múltiples scripts en el proyecto. Incluye funciones para mensajes con
 # colores, limpieza de recursos y utilidades diversas.
-#
-# Uso en otros scripts:
-#   source "$(dirname "$0")/../config/lib.sh"
-#   o
-#   source "${SCRIPT_DIR}/config/lib.sh"
 
 # ============================================================================
 # DEFINICIÓN DE COLORES (si no están definidos)
 # ============================================================================
 
-[[ -z "${RED:-}" ]] && readonly RED='\033[0;31m'
-[[ -z "${GREEN:-}" ]] && readonly GREEN='\033[0;32m'
-[[ -z "${YELLOW:-}" ]] && readonly YELLOW='\033[1;33m'
-[[ -z "${BLUE:-}" ]] && readonly BLUE='\033[0;34m'
-[[ -z "${CYAN:-}" ]] && readonly CYAN='\033[0;36m'
-[[ -z "${BOLD:-}" ]] && readonly BOLD='\033[1m'
+[[ -z "${WHITE:-}"   ]] && readonly WHITE='\033[0;37m'
+[[ -z "${MAGENTA:-}" ]] && readonly MAGENTA='\033[0;35m'
+[[ -z "${CYAN_B:-}"  ]] && readonly CYAN_B='\033[38;5;51m'
+[[ -z "${BLUE:-}"    ]] && readonly BLUE='\033[0;34m'
+[[ -z "${GREEN:-}"   ]] && readonly GREEN='\033[0;32m'
+[[ -z "${YELLOW:-}"  ]] && readonly YELLOW='\033[0;33m'
+[[ -z "${RED:-}"     ]] && readonly RED='\033[0;31m'
+[[ -z "${BOLD:-}"  ]] && readonly BOLD='\033[1m'
 [[ -z "${RESET:-}" ]] && readonly RESET='\033[0m'
 
 # ============================================================================
@@ -49,15 +46,18 @@
 message() {
     local signal color
     case "$1" in
-        "-title")       color="${BOLD}${CYAN}";       signal="[→]"; shift; echo -e "\n${color}${signal} $*${RESET}";;
-        "-subtitle")    color="${BOLD}${BLUE}";       signal="[*]"; shift; echo -e "${color}${signal} $*${RESET}";;
-        "-success")     color="${GREEN}${BOLD}";      signal="[+]"; shift; echo -e "${color}${signal} $*${RESET}";;
-        "-warning")     color="${YELLOW}${BOLD}";     signal="[&]"; shift; echo -e "${color}${signal} $*${RESET}";;
-        "-error")       color="${RED}${BOLD}";        signal="[-]"; shift; echo -e "${color}${signal} $*${RESET}";;
-        "-info")        color="${CYAN}";              signal="[i]"; shift; echo -e "${color}${signal} $*${RESET}";;
-        *)              color="${RESET}"; echo -e "${color}$*${RESET}";;
+        -title)     color="${WHITE}${BOLD}";    signal="[→]"; shift; echo -e "\n${color}${signal} $*${RESET}";;
+        -subtitle)  color="${MAGENTA}${BOLD}";  signal="[*]"; shift; echo -e "${color}${signal} $*${RESET}";;
+        -approval)  color="${CYAN_B}${BOLD}";   signal="[?]"; shift; echo -e "${color}${signal} $*${RESET}";;
+        -info)      color="${CYAN_B}";          signal="[i]"; shift; echo -e "${color}${signal} $*${RESET}";;
+        -cancel)    color="${BLUE}${BOLD}";     signal="[!]"; shift; echo -e "${color}${signal} $*${RESET}";;
+        -warning)   color="${YELLOW}${BOLD}";   signal="[&]"; shift; echo -e "\t${color}${signal} $*${RESET}";;
+        -success)   color="${GREEN}${BOLD}";    signal="[+]"; shift; echo -e "\t${color}${signal} $*${RESET}";;
+        -error)     color="${RED}${BOLD}";      signal="[-]"; shift; echo -e "\t${color}${signal} $*${RESET}";;
+        *)          echo -e "$*";;
     esac
 }
+
 
 # ============================================================================
 # FUNCIÓN: check_command_exists
@@ -413,52 +413,28 @@ lazy_load_function() {
         return 1
     fi
     
-    # Validación de seguridad mejorada del path
+    # Validar y normalizar path (prevenir directory traversal)
     local normalized_file
-    local project_root
-    
-    # Determinar project root de forma segura
-    project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || {
-        message -error "lazy_load_function: no se puede determinar el project root"
-        return 1
-    }
-    
-    # Validar que el path no contiene patrones peligrosos
-    if [[ "$source_file" =~ \.\./|\.\.\\|~[/\\]|\$ ]]; then
-        message -error "lazy_load_function: path contiene patrones peligrosos: $source_file"
-        return 1
-    fi
-    
-    # Convertir a path absoluto de forma segura
-    if [[ "$source_file" = /* ]]; then
-        normalized_file="$source_file"
-    else
-        normalized_file="$project_root/$source_file"
-    fi
-    
-    # Normalizar el path de forma segura
-    normalized_file="$(realpath -m "$normalized_file" 2>/dev/null)" || {
+    normalized_file=$(realpath "$source_file" 2>/dev/null) || {
         message -error "lazy_load_function: path inválido: $source_file"
         return 1
     }
     
-    # Verificar que el archivo existe, es regular y legible
+    # Verificar que el archivo existe y es legible
     if [[ ! -f "$normalized_file" ]] || [[ ! -r "$normalized_file" ]]; then
         message -warning "lazy_load_function: archivo no encontrado o no legible: $normalized_file"
         return 1
     fi
     
-    # Verificación de seguridad estricta: debe estar dentro del project root
+    # Verificar que es un archivo seguro (dentro del proyecto)
+    local project_root
+    project_root=$(realpath "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null) || {
+        message -error "lazy_load_function: no se puede determinar el project root"
+        return 1
+    }
+    
     if [[ ! "$normalized_file" == "$project_root"* ]]; then
         message -error "lazy_load_function: archivo fuera del proyecto: $normalized_file"
-        return 1
-    fi
-    
-    # Verificar que el archivo es seguro (no contiene symlinks peligrosos)
-    local file_dir
-    file_dir="$(dirname "$normalized_file")"
-    if [[ -L "$file_dir" ]]; then
-        message -error "lazy_load_function: directorio padre es symlink: $file_dir"
         return 1
     fi
     
@@ -467,13 +443,8 @@ lazy_load_function() {
     '"$func_name"'() {
         # Descargar el stub
         unset -f '"$func_name"'
-        # Cargar la función real de forma segura
-        if [[ -f "'"$normalized_file"'" ]] && [[ -r "'"$normalized_file"'" ]]; then
-            source "'"$normalized_file"'"
-        else
-            message -error "lazy_load_function: archivo ya no disponible: '"$normalized_file"'"
-            return 1
-        fi
+        # Cargar la función real
+        source "'"$normalized_file"'"
         # Ejecutar la función con los argumentos originales
         '"$func_name"' "$@"
     }
@@ -638,249 +609,190 @@ validate_directory_exists() {
 }
 
 # ============================================================================
-# FUNCIÓN: parse_toml_section
+# FUNCIÓN: get_package_manager_commands
 # ============================================================================
-# Parser TOML mejorado y seguro para extraer valores de una sección específica
+# Obtiene los comandos del gestor de paquetes según la distribución
 #
 # Argumentos:
-#   $1: Path del archivo TOML
-#   $2: Nombre de la sección (sin corchetes)
-#   $3: Variable de salida para el array de valores (opcional)
+#   $1: Distribución (ubuntu, debian, arch, manjaro, fedora, rhel)
 #
 # Retorno:
-#   0: Éxito
-#   1: Error
+#   Exporta variables: PKG_UPDATE_CMD, PKG_INSTALL_CMD, PKG_CHECK_CMD
 #
 # Ejemplo:
-#   parse_toml_section "deps.toml" "linux" deps_array
-#   echo "${deps_array[@]}"
-#
-# Salida directa (si no se especifica variable de salida):
-#   Imprime cada valor en una línea
+#   get_package_manager_commands "ubuntu"
+#   eval "$PKG_INSTALL_CMD git"
 
-parse_toml_section() {
-    local toml_file="$1"
-    local section_name="$2"
-    local output_var="$3"
+get_package_manager_commands() {
+    local distro="$1"
     
-    # Validación de entrada
-    if [[ -z "$toml_file" ]] || [[ -z "$section_name" ]]; then
-        message -error "parse_toml_section: archivo y sección son requeridos"
-        return 1
-    fi
-    
-    # Validar que el archivo existe y es legible
-    if [[ ! -f "$toml_file" ]] || [[ ! -r "$toml_file" ]]; then
-        message -error "parse_toml_section: archivo no encontrado o no legible: $toml_file"
-        return 1
-    fi
-    
-    # Validar nombre de sección
-    if [[ ! "$section_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-        message -error "parse_toml_section: nombre de sección inválido: $section_name"
-        return 1
-    fi
-    
-    # Variables locales
-    local in_section=false
-    local line_num=0
-    local values=()
-    
-    # Procesar archivo línea por línea
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        ((line_num++))
-        
-        # Eliminar espacios en blanco al inicio y final
-        line="${line#"${line%%[![:space:]]*}"}"
-        line="${line%"${line##*[![:space:]]}"}"
-        
-        # Saltar líneas vacías
-        [[ -z "$line" ]] && continue
-        
-        # Detectar sección objetivo
-        if [[ "$line" =~ ^\[""$section_name""\]$ ]]; then
-            in_section=true
-            continue
-        fi
-        
-        # Si encontramos otra sección, terminar
-        if [[ "$line" =~ ^\[.+\]$ ]] && [[ "$in_section" == true ]]; then
-            break
-        fi
-        
-        # Procesar líneas dentro de la sección
-        if [[ "$in_section" == true ]]; then
-            # Saltar comentarios (desde # hasta final de línea)
-            if [[ "$line" =~ ^[[:space:]]*# ]]; then
-                continue
-            fi
-            
-            # Eliminar comentarios inline (después de # si no está entre comillas)
-            if [[ "$line" =~ ^[^#]*# ]]; then
-                # Verificar si el # está dentro de una cadena entrecomillada
-                local temp_line="${line%%#*}"
-                local quote_count
-                quote_count=$(grep -o '"' <<< "$temp_line" | wc -l)
-                
-                if (( quote_count % 2 == 0 )); then
-                    line="$temp_line"
-                fi
-            fi
-            
-            # Liminar espacios en blanco
-            line="${line#"${line%%[![:space:]]*}"}"
-            line="${line%"${line##*[![:space:]]}"}"
-            
-            # Saltar si quedó vacío después de limpiar
-            [[ -z "$line" ]] && continue
-            
-            # Validar que no sea una asignación (clave = valor)
-            if [[ "$line" =~ ^[a-zA-Z][a-zA-Z0-9_-]*[[:space:]]*= ]]; then
-                # Extraer valor después del =
-                local value="${line#*=}"
-                # Limpiar espacios y comillas
-                value="${value#"${value%%[![:space:]]*}"}"
-                value="${value%"${value##*[![:space:]]}"}"
-                value="${value#\"}"
-                value="${value%\"}"
-                value="${value#\'}"
-                value="${value%\'}"
-                [[ -n "$value" ]] && values+=("$value")
-            else
-                # Es un valor simple (solo el nombre del paquete/dependencia)
-                values+=("$line")
-            fi
-        fi
-    done < "$toml_file"
-    
-    # Manejo de salida
-    if [[ -n "$output_var" ]]; then
-        if declare -p "$output_var" 2>/dev/null | grep -q "declare -a"; then
-            # Asignar al array existente
-            eval "$output_var=(\"\${values[@]}\")"
-        else
-            # Crear nuevo array
-            declare -ga "$output_var=(\"\${values[@]}\")"
-        fi
-    else
-        # Imprimir valores
-        printf '%s\n' "${values[@]}"
-    fi
+    case "$distro" in
+        ubuntu|debian)
+            export PKG_UPDATE_CMD="sudo apt update -qq"
+            export PKG_INSTALL_CMD="sudo apt install -y"
+            export PKG_CHECK_CMD="dpkg -l"
+            ;;
+        arch|manjaro)
+            export PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
+            export PKG_INSTALL_CMD="sudo pacman -S --noconfirm"
+            export PKG_CHECK_CMD="pacman -Q"
+            ;;
+        fedora|rhel)
+            export PKG_UPDATE_CMD="sudo dnf check-update"
+            export PKG_INSTALL_CMD="sudo dnf install -y"
+            export PKG_CHECK_CMD="dnf list installed"
+            ;;
+        *)
+            message -error "Distribución no soportada: $distro"
+            return 1
+            ;;
+    esac
     
     return 0
 }
 
 # ============================================================================
-# FUNCIÓN: parse_toml_key_value
+# FUNCIÓN: check_packages_array
 # ============================================================================
-# Parser TOML para extraer un valor específico de una sección
+# Verifica disponibilidad de un array de paquetes
 #
 # Argumentos:
-#   $1: Path del archivo TOML
-#   $2: Nombre de la sección
-#   $3: Nombre de la clave
-#   $4: Variable de salida (opcional)
+#   $1: Distribución
+#   $2: Array de paquetes (pasado por nombre)
 #
 # Retorno:
-#   0: Éxito
-#   1: Error o clave no encontrada
+#   0: Todos los paquetes están disponibles
+#   1: Al menos un paquete falta
+#   Exporta variable: MISSING_PACKAGES[] con paquetes faltantes
 #
 # Ejemplo:
-#   parse_toml_key_value "config.toml" "database" "host" db_host
+#   packages=("git" "curl" "jq")
+#   if check_packages_array "ubuntu" packages; then
+#       message -success "Todos los paquetes disponibles"
+#   else
+#       message -warning "Paquetes faltantes: ${MISSING_PACKAGES[*]}"
+#   fi
 
-parse_toml_key_value() {
-    local toml_file="$1"
-    local section_name="$2"
-    local key_name="$3"
-    local output_var="$4"
+check_packages_array() {
+    local distro="$1"
+    local -n packages_ref="$2"
+    MISSING_PACKAGES=()
     
-    # Validación de entrada
-    if [[ -z "$toml_file" ]] || [[ -z "$section_name" ]] || [[ -z "$key_name" ]]; then
-        message -error "parse_toml_key_value: archivo, sección y clave son requeridos"
+    # Obtener comandos del gestor de paquetes
+    get_package_manager_commands "$distro" || return 1
+    
+    # Verificar cada paquete
+    for pkg in "${packages_ref[@]}"; do
+        if command -v "$pkg" >/dev/null 2>&1; then
+            message -success "$pkg -> disponible"
+        else
+            message -warning "$pkg -> no encontrado"
+            MISSING_PACKAGES+=("$pkg")
+        fi
+    done
+    
+    # Retornar 0 si todos están disponibles, 1 si faltan
+    [[ ${#MISSING_PACKAGES[@]} -eq 0 ]]
+}
+
+# ============================================================================
+# FUNCIÓN: install_packages_array
+# ============================================================================
+# Instala un array de paquetes según la distribución
+#
+# Argumentos:
+#   $1: Distribución
+#   $2: Array de paquetes (pasado por nombre)
+#   $3: Omitir actualización (opcional, default: false)
+#
+# Retorno:
+#   0: Todos los paquetes instalados exitosamente
+#   1: Al menos un paquete falló
+#   Exporta variables: SUCCESSFUL_PACKAGES[], FAILED_PACKAGES[]
+#
+# Ejemplo:
+#   packages=("git" "curl" "jq")
+#   if install_packages_array "ubuntu" packages; then
+#       message -success "Instalación completada"
+#   fi
+
+install_packages_array() {
+    local distro="$1"
+    local -n packages_ref="$2"
+    local skip_update="${3:-false}"
+    SUCCESSFUL_PACKAGES=()
+    FAILED_PACKAGES=()
+    
+    # Validar que hay paquetes para instalar
+    [[ ${#packages_ref[@]} -eq 0 ]] && {
+        message -info "No hay paquetes para instalar"
+        return 0
+    }
+    
+    # Obtener comandos del gestor de paquetes
+    get_package_manager_commands "$distro" || return 1
+    
+    # Obtener permisos sudo una sola vez
+    message -warning "Se requieren permisos de sudo"
+    local sudo_attempt=0
+    while (( sudo_attempt < 3 )); do
+        sudo -n true 2>/dev/null || sudo true && break
+        ((sudo_attempt++))
+        sleep 1
+    done
+
+    if (( sudo_attempt >= 3 )); then
+        message -error "No se pudieron obtener permisos de sudo"
         return 1
     fi
+    message -success "Permisos de sudo obtenidos"
     
-    # Validar que el archivo existe
-    if [[ ! -f "$toml_file" ]] || [[ ! -r "$toml_file" ]]; then
-        message -error "parse_toml_key_value: archivo no encontrado o no legible: $toml_file"
-        return 1
+    # Actualizar repositorios si no se omite
+    if [[ "$skip_update" != "true" ]]; then
+        message -subtitle "Actualizando repositorios..."
+        if ! eval "$PKG_UPDATE_CMD" &>/dev/null; then
+            message -error "Error actualizando repositorios"
+            return 1
+        fi
     fi
     
-    # Validar nombres
-    if [[ ! "$section_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]] || [[ ! "$key_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-        message -error "parse_toml_key_value: nombres inválidos"
-        return 1
-    fi
-    
-    local in_section=false
-    local line_num=0
-    
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        ((line_num++))
-        
-        # Limpiar línea
-        line="${line#"${line%%[![:space:]]*}"}"
-        line="${line%"${line##*[![:space:]]}"}"
-        
-        [[ -z "$line" ]] && continue
-        
-        # Detectar sección
-        if [[ "$line" =~ ^\[""$section_name""\]$ ]]; then
-            in_section=true
+    # Instalar paquetes
+    message -subtitle "Instalando paquetes..."
+    for pkg in "${packages_ref[@]}"; do
+        # Verificar si ya está instalado
+        if command -v "$pkg" >/dev/null 2>&1 || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
+            message -success "$pkg -> ya disponible"
+            SUCCESSFUL_PACKAGES+=("$pkg")
             continue
         fi
         
-        # Salir si encontramos otra sección
-        if [[ "$line" =~ ^\[.+\]$ ]] && [[ "$in_section" == true ]]; then
-            break
-        fi
-        
-        # Procesar líneas en la sección
-        if [[ "$in_section" == true ]]; then
-            # Saltar comentarios
-            [[ "$line" =~ ^[[:space:]]*# ]] && continue
-            
-            # Buscar clave = valor
-            if [[ "$line" =~ ^[[:space:]]*"$key_name"[[:space:]]*= ]]; then
-                local value="${line#*=}"
-                # Limpiar valor
-                value="${value#"${value%%[![:space:]]*}"}"
-                value="${value%"${value##*[![:space:]]}"}"
-                
-                # Eliminar comentarios inline
-                if [[ "$value" =~ ^[^#]*# ]]; then
-                    local temp_value="${value%%#*}"
-                    local quote_count
-                    quote_count=$(grep -o '"' <<< "$temp_value" | wc -l)
-                    if (( quote_count % 2 == 0 )); then
-                        value="$temp_value"
-                    fi
-                fi
-                
-                value="${value#"${value%%[![:space:]]*}"}"
-                value="${value%"${value##*[![:space:]]}"}"
-                
-                # Quitar comillas
-                value="${value#\"}"
-                value="${value%\"}"
-                value="${value#\'}"
-                value="${value%\'}"
-                
-                # Asignar o imprimir valor
-                if [[ -n "$output_var" ]]; then
-                    printf -v "$output_var" '%s' "$value"
-                else
-                    printf '%s\n' "$value"
-                fi
-                
-                return 0
+        message -info "Instalando: $pkg"
+        if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
+            # Verificar que se instaló correctamente
+            if command -v "$pkg" &>/dev/null || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
+                message -success "✓ Instalado: $pkg"
+                SUCCESSFUL_PACKAGES+=("$pkg")
+            else
+                message -error "✗ Instalado pero no detectable: $pkg"
+                FAILED_PACKAGES+=("$pkg")
             fi
+        else
+            message -error "✗ Falló: $pkg"
+            FAILED_PACKAGES+=("$pkg")
         fi
-    done < "$toml_file"
+        sleep 1
+    done
     
-    # Clave no encontrada
-    message -warning "parse_toml_key_value: clave '$key_name' no encontrada en sección '$section_name'"
-    return 1
+    # Resumen
+    [[ ${#SUCCESSFUL_PACKAGES[@]} -gt 0 ]] && \
+        message -success "Paquetes instalados: ${SUCCESSFUL_PACKAGES[*]}"
+
+    if [[ ${#FAILED_PACKAGES[@]} -gt 0 ]]; then
+        message -warning "Paquetes que fallaron: ${FAILED_PACKAGES[*]}"
+        return 1
+    fi
+
+    return 0
 }
 
 # ============================================================================

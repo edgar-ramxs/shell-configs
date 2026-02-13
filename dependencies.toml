@@ -18,40 +18,113 @@
 # ----------------------------------------------------------------------------
 [linux]
 packages = [
-    "git",                     # Version control
-    "curl",                    # URL transfer tool
-    "jq",                      # JSON processor
-    "lsd",                     # Modern ls replacement
-    "bat",                     # Better cat with syntax highlighting
-    "fzf",                     # Fuzzy finder
-    "ripgrep",                 # Fast grep alternative
-    "fd-find",                 # User-friendly find
-    "exa",                     # Modern ls with git support
-    "tldr",                    # Simplified man pages
-    "zsh",                     # Z shell
-    "bash",                    # Bourne Again Shell
-    "nodejs",                  # Node.js runtime
-    "npm",                     # Node package manager
-    "python3",                 # Python 3 interpreter
-    "python3-pip",             # Python package manager
-    "rustc",                   # Rust compiler
-    "cargo",                   # Rust package manager
-    "build-essential",         # Compilation tools
-    "unzip",                   # Unzip utility
-    "wget",                    # Download utility
-    "tty-clock",               # Terminal clock
-    "neofetch",                # System info tool
-    "fastfetch",               # Fast system info tool
-    "vim",                     # Text editor
-    "bun",                     # Fast JavaScript runtime
-    "scrub",                   # Secure file deletion
-    "shred",                   # File shredding utility
-    "xclip",                   # Command line clipboard tool
-    "bc",                      # Command line calculator
-    "mpstat",                  # CPU usage monitoring tool
-    "htop",                    # Interactive process viewer
-    "btop",                    # Resource monitor
-    "starship",                # Cross-shell prompt
+    { name = "lsd", description = "Modern ls replacement" },
+    { name = "bat", description = "Better cat with syntax highlighting" },
+    { name = "fzf", description = "Fuzzy finder" },
+    { name = "ripgrep", description = "Fast grep alternative" },
+    { name = "fd-find", description = "User-friendly find" },
+    { name = "exa", description = "Modern ls with git support" },
+    { name = "tldr", description = "Simplified man pages" },
+    { name = "zsh", description = "Z shell" },
+    { name = "bash", description = "Bourne Again Shell" },
+    { name = "nodejs", description = "Node.js runtime" },
+    { name = "npm", description = "Node package manager" },
+    { name = "python3", description = "Python 3 interpreter" },
+    { name = "python3-pip", description = "Python package manager" },
+    { name = "rustc", description = "Rust compiler" },
+    { name = "cargo", description = "Rust package manager" },
+    { name = "build-essential", description = "Compilation tools" },
+    { name = "unzip", description = "Unzip utility" },
+    { name = "tty-clock", description = "Terminal clock" },
+    { name = "neofetch", description = "System info tool" },
+    { name = "fastfetch", description = "Fast system info tool" },
+    { name = "vim", description = "Text editor" },
+    { name = "scrub", description = "Secure file deletion" },
+    { name = "shred", description = "File shredding utility" },
+    { name = "xclip", description = "Command line clipboard tool" },
+    { name = "bc", description = "Command line calculator" },
+    { name = "mpstat", description = "CPU usage monitoring tool" },
+    { name = "htop", description = "Interactive process viewer" },
+    { name = "btop", description = "Resource monitor" },
+    { name = "starship", description = "Cross-shell prompt" },
+    { name = "coreutils", description = "Core GNU utilities" },
+    { name = "util-linux", description = "Linux system utilities" },
+    { name = "findutils", description = "File finding utilities" },
+    { name = "grep", description = "Pattern searching utility" },
+    { name = "sed", description = "Stream editor" },
+    { name = "awk", description = "Pattern scanning and processing language" },
+    { name = "tar", description = "Archive utility" },
+    { name = "ncurses-bin", description = "Terminal handling library" },
+    { name = "unrar", description = "Unrar utility" },
+    { name = "p7zip-full", description = "7z archive utility" },
+    { name = "bzip2", description = "Bzip2 compression utility" },
+    { name = "gzip", description = "Gzip compression utility" },
+    { name = "compress", description = "Legacy compression utility" },
+    { name = "highlight", description = "Syntax highlighting tool" },
+    { name = "coderay", description = "Code syntax highlighting" },
+    { name = "rougify", description = "Ruby syntax highlighter" },
+    { name = "file", description = "File type detection" },
+    { name = "gcc", description = "GNU C compiler" },
+    { name = "g++", description = "GNU C++ compiler" },
+    { name = "default-jdk", description = "Java development kit" },
+    { name = "kotlin", description = "Kotlin compiler" },
+    { name = "fpc", description = "Free Pascal compiler" },
+    { name = "golang-go", description = "Go programming language" },
+    { name = "git", description = "Version control system" },
+    { name = "jq", description = "JSON processor" },
+    { name = "make", description = "Build automation tool" },
+    { name = "curl", description = "Data transfer utility" },
+    { name = "wget", description = "File download utility" },
+    { name = "net-tools", description = "Network utilities" },
+    { name = "iproute2", description = "Network configuration tools" },
+    { name = "procps", description = "Process utilities" },
+    { name = "nano", description = "Simple text editor" },
+    { name = "micro", description = "Modern terminal text editor" },
+    { name = "code", description = "Visual Studio Code" },
+    { name = "emacs", description = "GNU Emacs editor" },
+    { name = "thunar", description = "File manager" },
+    { name = "tree", description = "Directory tree viewer" },
+    { name = "ranger", description = "Terminal file manager" },
+    { name = "gnupg", description = "GNU Privacy Guard" },
+    { name = "mysql-server", description = "MySQL database server" },
+    { name = "mongodb", description = "MongoDB database" },
+    { name = "postgresql", description = "PostgreSQL database server" },
+    { name = "redis-server", description = "Redis data store" },
+    { name = "flatpak", description = "Universal application packaging" },
+    { name = "snapd", description = "Snap package manager" },
+    { name = "pnpm", description = "Fast package manager" },
+    { name = "bun", description = "JavaScript runtime and package manager" },
+    { name = "composer", description = "PHP dependency manager" },
+    { name = "python3-venv", description = "Python virtual environments" },
+    { name = "php", description = "PHP interpreter" },
+    { name = "ruby", description = "Ruby interpreter" },
+    { name = "systemd", description = "System and service manager" },
+    { name = "rclone", description = "Cloud storage synchronization" },
+    { name = "cron", description = "Task scheduler" },
+    { name = "firefox", description = "Web browser" },
+    { name = "kitty", description = "Terminal emulator" },
+    { name = "zathura", description = "PDF viewer" },
+    { name = "feh", description = "Image viewer" },
+    { name = "dmenu", description = "Dynamic menu" },
+    { name = "rstudio-server", description = "RStudio server" },
+    { name = "nginx", description = "Web server" },
+    { name = "apache2", description = "Apache web server" },
+    { name = "fontconfig", description = "Font configuration library" },
+    { name = "fonts-noto", description = "Google Noto fonts" },
+    { name = "fonts-firacode", description = "Fira Code programming font" },
+    { name = "grub-common", description = "GRUB bootloader utilities" },
+    { name = "efibootmgr", description = "EFI boot manager" },
+    { name = "ffmpeg", description = "Multimedia framework" },
+    { name = "imagemagick", description = "Image manipulation tools" },
+    { name = "fish", description = "Friendly interactive shell" },
+    { name = "tmux", description = "Terminal multiplexer" },
+    { name = "screen", description = "Terminal multiplexer" },
+    { name = "iotop", description = "I/O monitoring tool" },
+    { name = "nethogs", description = "Network monitoring tool" },
+    { name = "glances", description = "System monitoring tool" },
+    { name = "docker.io", description = "Docker container platform" },
+    { name = "virtualbox", description = "Virtualization platform" },
+    { name = "qemu-kvm", description = "QEMU KVM virtualization" },
 ]
 
 # ----------------------------------------------------------------------------
@@ -59,14 +132,14 @@ packages = [
 # ----------------------------------------------------------------------------
 [python]
 packages = [
-    "pip",          # Python package manager
-    "pipx",         # Python application installer
-    "setuptools",   # Package development and distribution
-    "virtualenv",   # Virtual environment manager
-    "pillow",       # Imaging library
-    "requests",     # HTTP library
-    "rembg",        # Background removal tool
-    "argparse"      # Command-line argument parsing library
+    { name = "pip", description = "Python package manager" },
+    { name = "pipx", description = "Python application installer" },
+    { name = "setuptools", description = "Package development and distribution" },
+    { name = "virtualenv", description = "Virtual environment manager" },
+    { name = "pillow", description = "Imaging library" },
+    { name = "requests", description = "HTTP library" },
+    { name = "rembg", description = "Background removal tool" },
+    { name = "argparse", description = "Command-line argument parsing library" },
 ]
 
 # ----------------------------------------------------------------------------
@@ -74,7 +147,7 @@ packages = [
 # ----------------------------------------------------------------------------
 [rust]
 packages = [
-    "cargo",     # Rust package manager
+    { name = "cargo", description = "Rust package manager" },
 ]
 
 # ----------------------------------------------------------------------------
@@ -82,17 +155,17 @@ packages = [
 # ----------------------------------------------------------------------------
 [node]
 packages = [
-    "@openai/codex",					        # OpenAI Codex CLI
-    "@google/gemini-cli",		                # Google Gemini CLI
-    "opencode-ai",					            # OpenCode AI CLI
-    "yarn",										# Yarn package manager
-    "bun",										# Bun JavaScript runtime
-    "pnpm",										# pnpm package manager
-    "deno",										# Deno runtime
-    "ts-node",									# TypeScript execution environment
-    "typescript",								# TypeScript language
-    "eslint",									# JavaScript linter
-    "prettier",									# Code formatter
+    { name = "@openai/codex", description = "OpenAI Codex CLI" },
+    { name = "@google/gemini-cli", description = "Google Gemini CLI" },
+    { name = "opencode-ai", description = "OpenCode AI CLI" },
+    { name = "yarn", description = "Yarn package manager" },
+    { name = "bun", description = "Bun JavaScript runtime" },
+    { name = "pnpm", description = "pnpm package manager" },
+    { name = "deno", description = "Deno runtime" },
+    { name = "ts-node", description = "TypeScript execution environment" },
+    { name = "typescript", description = "TypeScript language" },
+    { name = "eslint", description = "JavaScript linter" },
+    { name = "prettier", description = "Code formatter" },
 ]
 
 # ----------------------------------------------------------------------------

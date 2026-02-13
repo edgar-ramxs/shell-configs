@@ -13,10 +13,6 @@ fi
 [ -f "$XDG_CONFIG_HOME/shell-configs/functions" ] && source "$XDG_CONFIG_HOME/shell-configs/functions"
 [ -f "$XDG_CONFIG_HOME/shell-configs/aliases" ] && source "$XDG_CONFIG_HOME/shell-configs/aliases"
 
-[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
 export HISTSIZE=10000
 export SAVEHIST=$HISTSIZE
 export HISTFILE="$XDG_CACHE_HOME/shells-configs/zsh_history"

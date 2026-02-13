@@ -27,14 +27,14 @@ alias myip="curl -s ifconfig.me/all.json | jq"
 alias grup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
 
 # edit config shell files
-alias rcfg-zshrc="$EDITOR $HOME/.zshrc"
-alias rcfg-bashrc="$EDITOR $HOME/.bashrc"
-alias rcfg-profile="$EDITOR $HOME/.profile"
+alias rcfg-zsh="$EDITOR $HOME/.zshrc"
+alias rcfg-bsh="$EDITOR $HOME/.bashrc"
+alias rcfg-pfl="$EDITOR $HOME/.profile"
 
 # reload command
-alias reload-zsh="source ~/.zshrc"
-alias reload-bash="source ~/.bashrc"
-alias reload-fonts="fc-cache -v -f"
+alias rld-zsh="source ~/.zshrc"
+alias rld-bsh="source ~/.bashrc"
+alias rld-fts="fc-cache -v -f"
 
 # permissions
 alias per-mx="chmod a+x"
@@ -49,8 +49,8 @@ alias ftkr="flatpak remove"
 alias ftku="flatpak update"
 
 # # nodejs
-# alias nrs="npm run start"
-# alias np="pnpm"
+alias nrs="npm run start"
+alias np="pnpm"
 
 # python venv
 alias venv-stop="deactivate"
