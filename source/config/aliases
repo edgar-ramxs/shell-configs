@@ -26,11 +26,6 @@ alias smki="sudo make clean install"
 alias myip="curl -s ifconfig.me/all.json | jq"
 alias grup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
 
-# edit config shell files
-alias rcfg-zsh="$EDITOR $HOME/.zshrc"
-alias rcfg-bsh="$EDITOR $HOME/.bashrc"
-alias rcfg-pfl="$EDITOR $HOME/.profile"
-
 # reload command
 alias rld-zsh="source ~/.zshrc"
 alias rld-bsh="source ~/.bashrc"
@@ -54,7 +49,7 @@ alias np="pnpm"
 
 # python venv
 alias venv-stop="deactivate"
-alias venv-start="source $(get-venv-name)/bin/activate"
+alias venv-start="source \$(get-venv-name)/bin/activate"
 alias venv-name="basename \$(dirname \$(dirname \$(which python)))"
 alias venv-path="echo \$(dirname \$(dirname \$(which python)))"
 
@@ -78,13 +73,13 @@ alias server-py="python -m http.server 8000"
 alias server-rs="cargo install basic-http-server && basic-http-server . -a 0.0.0.0 -p 8000"
 
 # rlcone alias
-alias gdrive-status='systemctl --user status rclone-gdrive.service'
-alias gdrive-logs='journalctl --user -u rclone-gdrive.service -f'
-alias gdrive-restart='systemctl --user restart rclone-gdrive.service'
-alias gdrive-stop='systemctl --user stop rclone-gdrive.service'
-alias gdrive-start='systemctl --user start rclone-gdrive.service'
-alias gdrive-enable='systemctl --user enable rclone-gdrive.service'
-alias gdrive-disable='systemctl --user disable rclone-gdrive.service'
+alias rcln-status='systemctl --user status rclone-gdrive.service'
+alias rcln-logs='journalctl --user -u rclone-gdrive.service -f'
+alias rcln-restart='systemctl --user restart rclone-gdrive.service'
+alias rcln-stop='systemctl --user stop rclone-gdrive.service'
+alias rcln-start='systemctl --user start rclone-gdrive.service'
+alias rcln-enable='systemctl --user enable rclone-gdrive.service'
+alias rcln-disable='systemctl --user disable rclone-gdrive.service'
 
 # rstudio server management
 alias rstudio-stop="sudo rstudio-server stop"
@@ -93,6 +88,11 @@ alias rstudio-status="sudo rstudio-server status"
 alias rstudio-restart="sudo rstudio-server restart"
 alias rstudio-enable="sudo rstudio-server enable"
 alias rstudio-disable="sudo rstudio-server disable"
+
+# edit config shell files
+alias rcfg-zsh="$EDITOR $HOME/.zshrc"
+alias rcfg-bsh="$EDITOR $HOME/.bashrc"
+alias rcfg-pfl="$EDITOR $HOME/.profile"
 
 # edit config variables files
 alias rcfg-aliases="$EDITOR $XDG_CONFIG_HOME/shell-configs/aliases"

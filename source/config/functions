@@ -1,61 +1,17 @@
 #!/bin/sh
 #    ███████╗██╗   ██╗███╗   ██╗ ██████╗████████╗██╗ ██████╗ ███╗   ██╗███████╗
-#    ██╔════╝██║   ██║████╗  ██║██╔════╝╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
+#    ██╔════╝██║   ██║████╗  ██║██╔════╝╚██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
 #    █████╗  ██║   ██║██╔██╗ ██║██║        ██║   ██║██║   ██║██╔██╗ ██║███████╗
 #    ██╔══╝  ██║   ██║██║╚██╗██║██║        ██║   ██║██║   ██║██║╚██╗██║╚════██║
 #    ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
-#    ╚═╝      ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+#    ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 
-source "$(dirname "${BASH_SOURCE[0]}")/library"
-
-# ============================================================================
-# LAZY LOADING - Cargar funciones pesadas bajo demanda
-# ============================================================================
-#
-# Las siguientes funciones se cargan solo cuando se ejecutan por primera vez,
-# mejorando significativamente el tiempo de inicio del shell.
-
-if [[ -n "${BASH_VERSION:-}" ]] || [[ -n "${ZSH_VERSION:-}" ]]; then
-    if command -v lazy_load_function &>/dev/null || declare -f lazy_load_function &>/dev/null; then
-        lazy_load_function "compile-pls" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "fzf-lovely" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "extract-ports" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "tell-me-a-joke" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "pray-for-me" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "cheat" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "wttr" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "crypto-rate" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "initialize-git-repo" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-        lazy_load_function "calc" "$XDG_CONFIG_HOME/shell-configs/functions-heavy"
-    fi
-fi
+# Obtener la ruta del directorio que contiene este archivo
+source "$(dirname "${BASH_SOURCE[0]}")/library.sh"
 
 # ============================================================================
-# FUNCIONES LIGERAS - Cargadas directamente en el inicio
+# FUNCIONES DE MAN PAGINA COLOREADA
 # ============================================================================
-
-function hydra() {
-    clear &&
-    echo \
-    "    ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢤⡀⠀⠰⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⣠⣤⣀⣀⣀⣀⡀⠀⢀⣠⠀⠀⠀⠀⠀⠠⠐⠒⣒⣲⣶⣦⣽⣦⣀⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠛⠛⢿⣿⣶⣽⣿⣿⣯⣥⣀⡀⠀⠀⠀⣠⣶⣿⣿⣿⠿⠟⠿⢿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠈⠻⠛⠉⠙⠻⣿⣿⣶⣍⠀⠊⢱⣿⣿⣿⡇⠀⠀⠀⠀⠈⣿⣿⣶⣽⣆⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣯⡑⠀⢸⣿⣿⣿⣿⡄⠀⠀⠀⢀⠙⠛⠛⠿⣿⣿⣦⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⣿⣿⢷⠀⠘⣏⠻⣿⣿⣿⣦⣤⣀⣈⣲⣤⣀⣀⡀⠛⠃⠀⠀⠀⠀⠀
-⠀⠀⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⠀⠀⠀⠈⠔⠚⣻⣿⣿⣿⣿⣿⣿⣿⣿⣯⣝⣧⣤⣄⣀⠀⠀⠀
-⠀⠀⠀⢠⣇⣴⣮⣥⣤⡀⠀⢸⣿⣿⡏⠏⠀⠀⠀⣠⣾⣿⣿⡿⠟⢿⣿⣿⣆⠈⢿⣿⠿⠿⠿⠿⣿⠀⠀⠀
-⠀⠀⣠⢿⣿⡿⠿⣿⣿⣷⣅⢸⣿⣿⡇⠀⠀⠀⠔⣹⣿⣿⡏⠀⠀⠈⣿⣿⣿⡀⠀⠠⠄⣀⠀⡆⠀⠀⠀⠀
-⠀⢀⣯⣾⡿⠆⠀⢸⣿⣿⣧⠉⣿⣿⣷⡀⠀⠀⢠⣿⣿⣿⣧⡀⠀⢀⣿⣿⣿⠀⠠⣲⣿⣿⣿⣿⣦⡀⠀⠀
-⠀⣿⡟⠁⠀⠀⠀⣾⣿⣿⠻⠀⠘⢿⣿⣿⣦⡀⠀⢏⠻⣿⣿⣿⣆⣼⣿⣿⣿⢀⣺⣿⣿⠁⠈⣿⣷⣷⡀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⣇⠁⠀⠀⠀⠙⢿⣿⣿⣷⣮⣄⣹⣿⣿⣿⣿⣿⣿⡿⠀⡿⣿⣿⣄⠀⠀⠈⠹⡿⠀
-⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣦⣄⣀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠃⠀⠘⢹⣿⣿⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠈⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣃⣀⣠⣴⣿⣿⠏⠀⠀⠀⠀⠀⠀
-    ⠀⠀⠀⠀⠀⠀⠀⠀⠲⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⠅⠀⠀⠀⠀⠀⠀⠀⠀"
-    tput civis
-    read -n 1
-    tput cnorm
-}
 
 function man() {
     local normal='\e[0m'
@@ -74,294 +30,130 @@ function man() {
     man "$@"
 }
 
-function mkt(){
-	mkdir -p {nmap,content,exploits,scripts}
+# ============================================================================
+# FUNCIONES DE VISUALIZACIÓN ASCII
+# ============================================================================
+
+function show_ascii() {
+    local name="$1"
+    local ascii_dir="${XDG_DATA_HOME:-"$HOME/.local/share"}/shells-configs/draws"
+    
+    _lib_validate_required_param "$name" "Uso: show_ascii <nombre_ascii>" || return 1
+    
+    clear
+    _lib_validate_file_with_message "${ascii_dir}/${name}.txt" "Error: No se encontró ${name}.txt" || return 1
+    
+    /usr/bin/cat "${ascii_dir}/${name}.txt"
+    tput civis
+    read -n 1
+    tput cnorm
 }
 
-function cdl () { cd "$@" && ls; }
+# ============================================================================
+# FUNCIONES DE UTILIDADES BÁSICAS
+# ============================================================================
 
-function cmkdir() {
-    if [ -z "$1" ]; then
-        message -warning "Usage: cmk <directory-name>"
+function cdl (){ 
+    cd "$@" && ls -la; 
+}
+
+
+function mkt(){
+    if ! _lib_check_command_exists mkdir; then
+        _lib_message -error "mkdir no está disponible"
         return 1
     fi
-    mkdir "$1"
-    cd "$1"
     
+    mkdir -p {nmap,content,exploits,scripts} && \
+        _lib_message -success "Estructura de directorios de pentesting creada"
 }
+
 
 function rmk() {
-    scrub -p dod $1
-    shred -zun 10 -v $1
-}
-
-fetch() {
-  if command -v fastfetch >/dev/null; then
-    fastfetch "$@"
-  elif command -v neofetch >/dev/null; then
-    neofetch "$@"
-  elif command -v fetching >/dev/null; then
-    fetching "$@"
-  else
-    echo "fetch: no se encontró fastfetch, neofetch ni fetching" >&2
-    return 127
-  fi
-}
-
-function extract-files() {
-    if [ -f "$1" ]; then
-        case "$1" in
-            *.tar.bz2) tar xvjf "$1" ;;
-            *.tar.gz) tar xvzf "$1" ;;
-            *.bz2) bunzip2 "$1" ;;
-            *.rar) unrar x "$1" ;;
-            *.gz) gunzip "$1" ;;
-            *.tar) tar xvf "$1" ;;
-            *.tbz2) tar xvjf "$1" ;;
-            *.tgz) tar xvzf "$1" ;;
-            *.zip) unzip "$1" ;;
-            *.Z) uncompress "$1" ;;
-            *.7z) 7z x "$1" ;;
-            *) echo "Don't know how to extract '$1'..." ;;
-        esac
-    else
-        echo "'$1' is not a valid file!"
-    fi
-}
-
-function extract-ports() {
-	ports="$(cat $1 | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')"
-	ip_address="$(cat $1 | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
-	echo -e "\n[*] Extracting information...\n" > extractPorts.tmp
-	echo -e "\t[*] IP Address: $ip_address"  >> extractPorts.tmp
-	echo -e "\t[*] Open ports: $ports\n"  >> extractPorts.tmp
-	echo $ports | tr -d '\n' | xclip -sel clip
-	echo -e "[*] Ports copied to clipboard\n"  >> extractPorts.tmp
-	cat extractPorts.tmp; rm extractPorts.tmp
-}
-
-function open-file() {
-    local file=$1
-    if [ -z "$EDITOR" ]; then
-        message -warning "La variable EDITOR no está definida."
-    else
-        case "$EDITOR" in
-            code|vim|nano)
-                $EDITOR "$file"
-            ;;
-            *)
-                message -error "Editor no soportado: $EDITOR."
-            ;;
-        esac
-    fi
-}
-
-function venv-create() {
-    local dir_name=$(basename "$(pwd)")
-    local env_name=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)
-    env_name=".$env_name-env"
+    local target="$1"
     
-    python3 -m venv "$env_name"
-    if [ $? -ne 0 ]; then
-        message -error "Failed to create virtual environment."
+    _lib_validate_required_param "$target" "Uso: rmk <archivo_o_directorio>" || return 1
+    _lib_validate_file_with_message "$target" "El archivo especificado no existe: $target" || return 1
+    
+    _lib_check_command_exists scrub || {
+        _lib_message -error "scrub no está instalado. Instale con: sudo apt install scrub"
         return 1
-    fi
-    
-    source "$env_name/bin/activate"
-    if [ $? -ne 0 ]; then
-        message -error "Failed to activate virtual environment."
-        return 1
-    fi
-    
-    message -success "Virtual environment '$env_name' created and activated."
-}
-
-function get-venv-name() {
-    local dir_name=$(basename "$(pwd)")
-    echo -e ".$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT)-env"
-}
-
-function settarget(){
-    if [ $# -eq 1 ]; then
-        echo $1 > ~/.config/rofi/htb/mark-name
-        elif [ $# -gt 2 ]; then
-        echo "settarget [IP] [NAME] | settarget [IP]"
-    else
-        echo $1 $2 > ~/.config/rofi/htb/mark-name
-    fi
-}
-
-function fzf-lovely(){
-    if [ "$1" = "h" ]; then
-        fzf -m --reverse --preview-window down:20 --preview '[[ $(file --mime {}) =~ binary ]] &&
- 	                echo {} is a binary file ||
-	                 (bat --style=numbers --color=always {} ||
-	                  highlight -O ansi -l {} ||
-	                  coderay {} ||
-	                  rougify {} ||
-        cat {}) 2> /dev/null | head -500'
-        
-    else
-        fzf -m --preview '[[ $(file --mime {}) =~ binary ]] &&
-	                         echo {} is a binary file ||
-	                         (bat --style=numbers --color=always {} ||
-	                          highlight -O ansi -l {} ||
-	                         coderay {} ||
-	                          rougify {} ||
-        cat {}) 2> /dev/null | head -500'
-    fi
-}
-
-function cu {
-    local count=$1
-    if [ -z "${count}" ]; then
-        count=1
-    fi
-    local path=""
-    for i in $(seq 1 ${count}); do
-        path="${path}../"
-    done
-    cd $path
-}
-
-function compile-pls() {
-    if [[ -z "$1" ]]; then
-        message -cancel "Error: Debes proporcionar un archivo."
-        return 1
-    fi
-    
-    if [[ ! -f "$1" ]]; then
-        message -cancel "Error: El archivo '$1' no existe."
-        return 1
-    fi
-    
-    local filename=$(basename "$1")
-    local extension="${filename##*.}"
-    local name_without_ext="${filename%.*}"
-    
-    command_exists() {
-        command -v "$1" >/dev/null 2>&1
     }
     
-    case "$extension" in
-        "kt")
-            if command_exists kotlinc && command_exists java; then
-                kotlinc "$filename" -include-runtime -d "${name_without_ext}.jar" && java -jar "${name_without_ext}.jar"
-            else
-                message -cancel "Error: Kotlin o Java no están instalados."
-                return 1
-            fi
-        ;;
-        "java")
-            if command_exists javac && command_exists java; then
-                javac "$filename" && java "$name_without_ext"
-            else
-                message -cancel "Error: Java no está instalado."
-                return 1
-            fi
-        ;;
-        "cpp")
-            if command_exists g++; then
-                g++ "$filename" -o "$name_without_ext" && "./$name_without_ext"
-            else
-                message -cancel "Error: g++ no está instalado."
-                return 1
-            fi
-        ;;
-        "c")
-            if command_exists gcc; then
-                gcc "$filename" -o "$name_without_ext" && "./$name_without_ext"
-            else
-                message -cancel "Error: gcc no está instalado."
-                return 1
-            fi
-        ;;
-        "pas")
-            if command_exists fpc; then
-                fpc "$filename" && "./$name_without_ext"
-            else
-                message -cancel "Error: Free Pascal Compiler (fpc) no está instalado."
-                return 1
-            fi
-        ;;
-        *)
-            message -cancel "Error: Extensión de archivo no admitida: .$extension"
-            return 1
-        ;;
-    esac
-}
-
-
-function initialize_git_repo() {
-    local repo_name=""
-    local readme_message="Proyecto inicializado"
-    local remote_url=""
-    local branch="main"
-    local dir="$(pwd)"
-
-    while getopts "n:m:r:b:" opt; do
-        case "$opt" in
-            n) repo_name="$OPTARG" ;;       # Nombre del repositorio (obligatorio)
-            m) readme_message="$OPTARG" ;;  # Mensaje para el README.md (opcional)
-            r) remote_url="$OPTARG" ;;      # URL del repositorio remoto (opcional)
-            b) branch="$OPTARG" ;;          # Rama a la que se hará push (opcional)
-            \?) echo "Uso: initialize_git_repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
-            return 1 ;;
-        esac
-    done
+    _lib_check_command_exists shred || {
+        _lib_message -error "shred no está disponible"
+        return 1
+    }
     
-    if [[ -z "$repo_name" ]]; then
-        echo "Error: Debes proporcionar un nombre para el repositorio con -n."
+    _lib_confirm "¿Eliminar permanentemente '$target'? Esta acción es IRREVERSIBLE" || {
+        _lib_message -cancel "Operación cancelada por el usuario"
+        return 1
+    }
+    
+    _lib_message -info "Eliminando permanentemente: $target"
+    
+    if scrub -p dod "$target" && shred -zun 10 -v "$target"; then
+        _lib_message -success "Archivo eliminado permanentemente: $target"
+        return 0
+    else
+        _lib_message -error "Error eliminando archivo: $target"
         return 1
     fi
+}
 
-    mkdir -p "$repo_name" && cd "$repo_name" || return 1
-    
-    git init >/dev/null 2>&1
-    echo -e ".vscode/" > .gitignore
-    echo "# $repo_name" > README.md
-    echo "$readme_message" >> README.md
 
-    git add .
-    git commit -m "Initial commit" >/dev/null 2>&1
+function cmkdir() {
+    local dir_name="$1"
     
-    if [[ -n "$remote_url" ]]; then
-        git remote add origin "$remote_url"
-        git branch -M "$branch"
-        git push -u origin "$branch"
+    _lib_validate_required_param "$dir_name" "Uso: cmkdir <nombre-directorio>" || return 1
+    
+    if ! _lib_check_command_exists mkdir; then
+        _lib_message -error "mkdir no está disponible"
+        return 1
     fi
     
-    cd $dir
-    echo "Repositorio '$repo_name' inicializado correctamente."
+    if mkdir "$dir_name" 2>/dev/null; then
+        _lib_message -success "Directorio creado: $dir_name"
+    else
+        _lib_message -error "Error creando directorio: $dir_name"
+        return 1
+    fi
 }
 
-function tell-me-a-joke() {
-	curl -sSL https://v2.jokeapi.dev/joke/Any | jq -r '.category, .type, .joke, .setup, .delivery'
+
+function cudir() {
+    local count="${1:-1}"
+    
+    # Validar que el valor sea numérico y esté en un rango razonable
+    if ! _lib_safe_numeric_input "$count" 1 20 "El número de directorios debe estar entre 1 y 20"; then
+        _lib_message -info "Uso: cudir [numero_directorios] (default: 1, max: 20)"
+        return 1
+    fi
+    
+    if ! _lib_check_command_exists seq; then
+        _lib_message -error "seq no está disponible"
+        return 1
+    fi
+    
+    local path=""
+    for i in $(seq 1 $count); do
+        path="${path}../"
+    done
+    
+    cd "$path" || {
+        _lib_message -error "Error navegando $count directorios hacia arriba"
+        return 1
+    }
+    
+    _lib_message -info "Navegado $count directorios hacia arriba"
 }
 
-function pray-for-me() {
-    curl -s https://bible-api.deno.dev/api/books/newTestament | jq
-}
+# ============================================================================
+# FUNCIONES DE SISTEMA
+# ============================================================================
 
-function cheat() {
-    local search=$1
-	curl -s "cheat.sh/$search" | cat
-}
-
-function wttr() {
-    local idioma="es"
-    local opciones="2mp"
-    local ubicacion=""
-    curl -s "wttr.in/$ubicacion?$opciones&lang=$idioma"
-}
-
-function crypto-rate() {
-	curl -s "https://rate.sx/?qF&n=10"
-}
-
-function calc () {
-    local operation=$1
-    echo "$operation" | bc -ql
+function fetch() {
+    _lib_fetch_system_info "$@"
 }
 
 seleccionar_fetch() {
@@ -383,3 +175,252 @@ seleccionar_fetch() {
     return 1
 }
 
+function settarget(){
+    _lib_validate_param_count $# 1 2 "Uso: settarget <IP> [NAME] | settarget <IP>" || return 1
+    
+    local target_dir="$HOME/.config/rofi/htb"
+    local target_file="$target_dir/mark-name"
+    
+    # Asegurar que el directorio existe
+    _lib_ensure_dir "$target_dir" || {
+        _lib_message -error "No se puede crear directorio: $target_dir"
+        return 1
+    }
+    
+    if [[ $# -eq 1 ]]; then
+        echo "$1" > "$target_file" && \
+            _lib_message -success "Target guardado: $1"
+    else
+        echo "$1 $2" > "$target_file" && \
+            _lib_message -success "Target guardado: $1 ($2)"
+    fi
+}
+
+# ============================================================================
+# FUNCIONES DE UTILIDADES VARIAS
+# ============================================================================
+
+function extract-files() {
+    _lib_extract_archive "$@"
+}
+
+function open-file() {
+    _lib_smart_open "$@"
+}
+
+# ============================================================================
+# FUNCIONES DE ENTORNOS VIRTUALES PYTHON
+# ============================================================================
+
+function venv-create() {
+    _lib_create_python_venv "$@"
+}
+
+function get-venv-name() {
+    local dir_name=$(basename "$(pwd)")
+    _lib_normalize_text "$dir_name" "." "-env" "$dir_name"
+}
+
+# ============================================================================
+# FUNCIONES DE COMPILACIÓN
+# ============================================================================
+
+function compile-pls() {
+    _lib_compile_code "$@"
+}
+
+# ============================================================================
+# FUNCIONES DE BÚSQUEDA AVANZADA
+# ============================================================================
+
+function fzf-lovely(){
+    _lib_check_command_exists fzf || {
+        _lib_message -error "fzf no está instalado. Instale con: sudo apt install fzf"
+        return 1
+    }
+    
+    local preview_cmd='[[ $(file --mime {}) =~ binary ]] &&
+                      echo {} is a binary file ||
+                     (bat --style=numbers --color=always {} ||
+                      highlight -O ansi -l {} ||
+                      coderay {} ||
+                      rougify {} ||
+                      cat {}) 2> /dev/null | head -500'
+    
+    if [[ "$1" = "h" ]]; then
+        fzf -m --reverse --preview-window down:20 --preview "$preview_cmd"
+    else
+        fzf -m --preview "$preview_cmd"
+    fi
+}
+
+function extract-ports() {
+    local input_file="$1"
+    
+    _lib_validate_required_param "$input_file" "Uso: extract-ports <archivo_nmap>" || return 1
+    _lib_validate_file_with_message "$input_file" || return 1
+    
+    # Crear archivo temporal para el reporte
+    local temp_file
+    temp_file=$(_lib_create_temp_report "extract_ports" true)
+    
+    # Extraer información usando la función reutilizable
+    local ports ip_address
+    
+    _lib_message -info "Extrayendo información desde: $input_file"
+    
+    ports=$(_lib_extract_patterns "$input_file" '\d{1,5}/open' '/' ',')
+    ip_address=$(_lib_extract_patterns "$input_file" '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' ' ' ',' | head -n 1)
+    
+    # Escribir reporte en archivo temporal
+    _lib_write_to_temp "$temp_file" "\n[*] Extracting information...\n" "overwrite"
+    _lib_write_to_temp "$temp_file" "\t[*] IP Address: $ip_address"
+    _lib_write_to_temp "$temp_file" "\t[*] Open ports: $ports\n"
+    
+    # Copiar al clipboard si está disponible
+    if _lib_check_command_exists xclip; then
+        echo "$ports" | tr -d '\n' | xclip -sel clip 2>/dev/null && \
+            _lib_write_to_temp "$temp_file" "[*] Ports copied to clipboard\n"
+    else
+        _lib_message -warning "xclip no disponible, no se copió al clipboard"
+    fi
+    
+    # Mostrar reporte y limpiar
+    cat "$temp_file"
+    
+    _lib_message -success "Análisis completado"
+    return 0
+}
+
+
+function extract-ports() {
+	ports="$(cat $1 | grep -oP '\d{1,5}/open' | awk '{print $1}' FS='/' | xargs | tr ' ' ',')"
+	ip_address="$(cat $1 | grep -oP '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}' | sort -u | head -n 1)"
+	echo -e "\n[*] Extracting information...\n" > extractPorts.tmp
+	echo -e "\t[*] IP Address: $ip_address"  >> extractPorts.tmp
+	echo -e "\t[*] Open ports: $ports\n"  >> extractPorts.tmp
+	echo $ports | tr -d '\n' | xclip -sel clip
+	echo -e "[*] Ports copied to clipboard\n"  >> extractPorts.tmp
+	cat extractPorts.tmp; rm extractPorts.tmp
+}
+
+# ============================================================================
+# FUNCIONES DE RED Y UTILIDADES API
+# ============================================================================
+
+function tell-me-a-joke() {
+    _lib_fetch_json_api "https://v2.jokeapi.dev/joke/Any" '.category, .type, .joke, .setup, .delivery' "sSL"
+}
+
+function pray-for-me() {
+    _lib_fetch_json_api "https://bible-api.deno.dev/api/books/newTestament" "." "s"
+}
+
+function cheat() {
+    local search="$1"
+    
+    _lib_validate_required_param "$search" "Uso: cheat <comando_o_tema>" || return 1
+    _lib_fetch_text_api "$search" "https://cheat.sh" "s"
+}
+
+function wttr() {
+    local ubicacion="${1:-}"
+    local url
+    
+    # Construir URL con parámetros usando función reutilizable
+    url=$(_lib_build_api_url "https://wttr.in" "$ubicacion" "format=2mp" "lang=es")
+    
+    _lib_fetch_text_api "" "$url" "s"
+}
+
+function crypto-rate() {
+    _lib_fetch_text_api "" "https://rate.sx/?qF&n=10" "s"
+}
+
+
+function tell-me-a-joke() {
+	curl -sSL https://v2.jokeapi.dev/joke/Any | jq -r '.category, .type, .joke, .setup, .delivery'
+}
+
+function pray-for-me() {
+    curl -s https://bible-api.deno.dev/api/books/newTestament | jq
+}
+
+function cheat() {
+    local search=$1
+	curl -s "cheat.sh/$search" | cat
+}
+
+function wttr() {
+    local idioma="es"
+    local opciones="2mp"
+    local ubicacion="Santiago+de+chile"
+    curl -s "wttr.in/$ubicacion?$opciones&lang=$idioma"
+}
+
+function crypto-rate() {
+	curl -s "https://rate.sx/?qF&n=10"
+}
+
+# ============================================================================
+# FUNCIONES DE GIT
+# ============================================================================
+
+function initialize_git_repo() {
+    local repo_name=""
+    local readme_message="Proyecto inicializado"
+    local remote_url=""
+    local branch="main"
+    local dir="$(pwd)"
+
+    while getopts "n:m:r:b:" opt; do
+        case "$opt" in
+            n) repo_name="$OPTARG" ;;       # Nombre del repositorio (obligatorio)
+            m) readme_message="$OPTARG" ;;  # Mensaje para el README.md (opcional)
+            r) remote_url="$OPTARG" ;;      # URL del repositorio remoto (opcional)
+            b) branch="$OPTARG" ;;          # Rama a la que se hará push (opcional)
+            \?) _lib_message -error "Uso: initialize_git_repo -n <repo_name> [-m <readme_message>] [-r <remote_url>] [-b <branch>]"
+                return 1 ;;
+        esac
+    done
+    
+    if [[ -z "$repo_name" ]]; then
+        _lib_message -error "Error: Debes proporcionar un nombre para el repositorio con -n."
+        return 1
+    fi
+
+    mkdir -p "$repo_name" && cd "$repo_name" || return 1
+    git init >/dev/null 2>&1
+    echo -e ".vscode/" > .gitignore
+    echo "# $repo_name" > README.md
+    echo "$readme_message" >> README.md
+
+    git add .
+    git commit -m "Initial commit" >/dev/null 2>&1
+    
+    if [[ -n "$remote_url" ]]; then
+        git remote add origin "$remote_url"
+        git branch -M "$branch"
+        git push -u origin "$branch"
+    fi
+    
+    cd "$dir"
+    _lib_message -success "Repositorio '$repo_name' inicializado correctamente."
+}
+
+# ============================================================================
+# FUNCIONES DE CÁLCULO
+# ============================================================================
+
+function calc() {
+    _lib_simple_calc "$@"
+}
+
+function calc() {
+    local operation=$1
+    echo "$operation" | bc -ql
+}
+
+# ============================================================================
+# FIN DEL ARCHIVO DE FUNCIONES
+# ============================================================================

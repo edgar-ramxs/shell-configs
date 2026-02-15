@@ -35,6 +35,7 @@ export BROWSER="${BROWSER:-$(command -v firefox || command -v chromium || comman
 
 # Evitar duplicados y comandos simples en el historial
 export HISTCONTROL=erasedups:ignoreboth
+export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
 export HISTIGNORE="&:clear:ls:cd:[bf]g:exit:[ t\]*"
 export HISTORY_IGNORE="(ls|cd|pwd|exit|sudo reboot|history|cd -|cd ..)"
 
