@@ -124,7 +124,15 @@ packages = [
     { name = "glances", description = "System monitoring tool" },
     { name = "docker.io", description = "Docker container platform" },
     { name = "virtualbox", description = "Virtualization platform" },
-    { name = "qemu-kvm", description = "QEMU KVM virtualization" },
+    { name = "tar", description = "QEMU KVM virtualization" },
+    { name = "gzip", description = "QEMU KVM virtualization" },
+    { name = "bzip2", description = "QEMU KVM virtualization" },
+    { name = "unzip", description = "QEMU KVM virtualization" },
+    { name = "unrar", description = "QEMU KVM virtualization" },
+    { name = "p7zip", description = "QEMU KVM virtualization" },
+    { name = "p7zip-full", description = "QEMU KVM virtualization" },
+    { name = "p7zip-plugins", description = "QEMU KVM virtualization" },
+    { name = "ncompress", description = "QEMU KVM virtualization" }
 ]
 
 # ----------------------------------------------------------------------------

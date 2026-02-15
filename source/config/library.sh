@@ -791,34 +791,6 @@ _lib_install_packages_array() {
     return 0
 }
 
-# ============================================================================
-# FUNCIÓN: _lib_fetch_system_info
-# ============================================================================
-# Busca y ejecuta el mejor comando disponible para mostrar información del sistema
-#
-# Argumentos:
-#   $@: Argumentos adicionales para pasar al comando de fetch
-#
-# Retorno:
-#   0: Comando ejecutado exitosamente
-#   1: No se encontró ningún comando de fetch
-#
-# Ejemplo:
-#   _lib_fetch_system_info
-#   _lib_fetch_system_info --help
-
-_lib_fetch_system_info() {
-    local cmd
-    cmd=$(_lib_find_first_available_command fastfetch neofetch fetching zfetch)
-    
-    if [[ -n "$cmd" ]]; then
-        "$cmd" "$@"
-        return 0
-    else
-        _lib_message -error "No se encontró ningún comando de 'fetch'"
-        return 1
-    fi
-}
 
 # ============================================================================
 # FUNCIÓN: _lib_extract_archive
@@ -838,7 +810,6 @@ _lib_fetch_system_info() {
 
 _lib_extract_archive() {
     local file="$1"
-    
     _lib_check_file_exists "$file" || {
         _lib_message -error "Archivo no existe: $file"
         return 1
@@ -884,7 +855,6 @@ _lib_extract_archive() {
 
 _lib_smart_open() {
     local file="$1"
-    
     if [[ -z "$file" ]]; then
         _lib_message -error "Debe especificar un archivo"
         return 1
@@ -898,10 +868,7 @@ _lib_smart_open() {
     if [[ -z "${EDITOR:-}" ]]; then
         _lib_message -warning "La variable EDITOR no está definida"
         
-        # Intentar encontrar un editor automáticamente
-        local editor
-        editor=$(_lib_find_first_available_command code vim nano micro)
-        
+        local editor=$(_lib_find_first_available_command code vim nano micro)
         if [[ -n "$editor" ]]; then
             _lib_message -info "Usando editor encontrado: $editor"
             "$editor" "$file"
@@ -1007,51 +974,6 @@ _lib_compile_code() {
     return 0
 }
 
-# ============================================================================
-# FUNCIÓN: _lib_create_python_venv
-# ============================================================================
-# Crea y activa un entorno virtual de Python
-#
-# Argumentos:
-#   $1: Nombre del entorno (opcional, usa el directorio actual si no se especifica)
-#
-# Retorno:
-#   0: Entorno creado y activado exitosamente
-#   1: Error en la creación o activación
-#
-# Ejemplo:
-#   _lib_create_python_venv
-#   _lib_create_python_venv "mi-proyecto"
-
-_lib_create_python_venv() {
-    local env_name="${1:-}"
-    local dir_name
-    
-    if [[ -z "$env_name" ]]; then
-        dir_name=$(basename "$(pwd)")
-        env_name=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]' | iconv -f utf8 -t ascii//TRANSLIT 2>/dev/null || echo "$dir_name")
-        env_name=".$env_name-env"
-    fi
-    
-    if [[ -d "$env_name" ]]; then
-        _lib_message -warning "El entorno virtual '$env_name' ya existe"
-        return 1
-    fi
-    
-    if ! _lib_check_command_exists python3; then
-        _lib_message -error "Python 3 no está instalado"
-        return 1
-    fi
-    
-    _lib_message -info "Creando entorno virtual: $env_name"
-    if ! python3 -m venv "$env_name"; then
-        _lib_message -error "Falló la creación del entorno virtual"
-        return 1
-    fi
-    
-    _lib_message -success "Entorno virtual '$env_name' creado y activado"
-    return 0
-}
 
 # ============================================================================
 # FUNCIÓN: _lib_simple_calc
@@ -1229,6 +1151,7 @@ _lib_fetch_json_api() {
     echo "$response" | jq -r "$jq_filter" 2>/dev/null
 }
 
+
 # FUNCIÓN: _lib_fetch_text_api
 # ============================================================================
 # Realiza petición HTTP a API y devuelve respuesta en texto plano
@@ -1260,53 +1183,77 @@ _lib_fetch_text_api() {
     curl -"$options" "${base_url}/${endpoint}" 2>/dev/null
 }
 
-# ============================================================================
-# FUNCIONES DE PROCESAMIENTO DE TEXTO REUTILIZABLES
-# ============================================================================
 
-# FUNCIÓN: _lib_extract_patterns
 # ============================================================================
-# Extrae patrones de archivos usando regex
+# FUNCIÓN: _lib_extract_patterns (versión portable mejorada)
+# ============================================================================
+# Extrae patrones desde un archivo usando regex portable.
 #
 # Argumentos:
-#   $1: Archivo a procesar
-#   $2: Patrón regex (con -P para Perl)
-#   $3: Separador de campo (opcional, default = " ")
-#   $4: Delimitador de salida (opcional, default = ",")
+#   $1 → archivo
+#   $2 → patrón regex
+#   $3 → separador de campo (opcional, default=" ")
+#   $4 → delimitador de salida (opcional, default=",")
+#   $5 → número de campo a extraer (opcional, default=1)
 #
-# Retorno:
-#   0: Éxito, imprime patrones extraídos
-#   1: Error
+# Retorna:
+#   0 → éxito
+#   1 → error
 #
 # Ejemplo:
-#   _lib_extract_patterns "nmap.txt" '\d{1,5}/open' '/' ','
+#   _lib_extract_patterns scan.txt '\d+/open' '/' ',' 1
+# ============================================================================
 
 _lib_extract_patterns() {
     local file="$1"
     local pattern="$2"
     local field_separator="${3:- }"
     local output_delimiter="${4:-,}"
+    local field_number="${5:-1}"
+
+    # Validar archivo usando función existente
+    _lib_validate_file_with_message "$file" "Archivo inválido: $file" || return 1
     
-    _lib_validate_file_with_message "$file" || return 1
+    # Validar patrón usando función existente
     _lib_validate_required_param "$pattern" "Debe proporcionar un patrón regex" || return 1
-    
-    if ! _lib_check_command_exists "grep"; then
+
+    # Validar comandos necesarios usando función existente
+    _lib_check_command_exists "grep" || {
         _lib_message -error "grep no está disponible"
         return 1
-    fi
-    
-    if ! _lib_check_command_exists "awk"; then
+    }
+
+    _lib_check_command_exists "awk" || {
         _lib_message -error "awk no está disponible"
         return 1
+    }
+
+    # Detectar soporte PCRE (-P)
+    local grep_cmd
+    if grep -P "" </dev/null &>/dev/null; then
+        grep_cmd=(grep -oP)
+    else
+        grep_cmd=(grep -oE)
     fi
-    
-    if ! _lib_check_command_exists "xargs"; then
-        _lib_message -error "xargs no está disponible"
-        return 1
-    fi
-    
-    grep -oP "$pattern" "$file" 2>/dev/null | awk "{print \$1}" FS="$field_separator" | xargs 2>/dev/null | tr ' ' "$output_delimiter"
+
+    # Pipeline principal
+    "${grep_cmd[@]}" "$pattern" "$file" 2>/dev/null \
+        | awk -v FS="$field_separator" -v field="$field_number" '
+            NF >= field { print $field }
+        ' \
+        | awk -v delim="$output_delimiter" '
+            BEGIN { first=1 }
+            {
+                if (!first) printf "%s", delim
+                printf "%s", $0
+                first=0
+            }
+            END { if (!first) printf "\n" }
+        '
+
+    return 0
 }
+
 
 # FUNCIÓN: _lib_normalize_text
 # ============================================================================
