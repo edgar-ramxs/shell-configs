@@ -6,6 +6,10 @@
 #    ███████╗██╔╝ ██╗██║     ╚██████╔╝██║  ██║   ██║   ███████║
 #    ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
 
+# ============================================================================
+# DETECCIÓN DE APLICACIONES PREDETERMINADAS
+# ============================================================================
+
 # Detectar y asignar aplicación de archivo automáticamente
 export FILE="${FILE:-$(command -v thunar || command -v nautilus || command -v dolphin || echo 'none')}"
 
@@ -38,6 +42,9 @@ export HISTCONTROL=erasedups:ignoreboth
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
 export HISTIGNORE="&:clear:ls:cd:[bf]g:exit:[ t\]*"
 export HISTORY_IGNORE="(ls|cd|pwd|exit|sudo reboot|history|cd -|cd ..)"
+export HISTSIZE=10000
+export SAVEHIST=10000
+export HISTFILESIZE=10000
 
 # ============================================================================
 # OPTIMIZACIONES DE APLICACIONES ESPECÍFICAS
@@ -124,9 +131,15 @@ if [[ -d "/usr/local/go/bin" ]] || [[ -d "$HOME/go/bin" ]]; then
 fi
 
 # Agregar Node.js (NVM) si está disponible
-if [[ -d "$HOME/.nvm/versions/node" ]]; then
+if [[ -d "$HOME/.nvm" ]]; then
+    export NVM_DIR="$HOME/.nvm"
+elif [[ -d "$HOME/.config/nvm" ]]; then
+    export NVM_DIR="$HOME/.config/nvm"
+fi
+
+if [[ -n "$NVM_DIR" ]] && [[ -d "$NVM_DIR/versions/node" ]]; then
     # Obtener la versión más reciente disponible
-    _NVM_VERSION=$(ls -td "$HOME/.nvm/versions/node"/* 2>/dev/null | head -1)
+    _NVM_VERSION=$(ls -td "$NVM_DIR/versions/node"/* 2>/dev/null | head -1)
     if [[ -n "$_NVM_VERSION" ]]; then
         _PATH_COMPONENTS+=("$_NVM_VERSION/bin")
     fi
@@ -135,14 +148,16 @@ fi
 
 # Agregar Bun si está disponible
 if [[ -d "$HOME/.bun/bin" ]]; then
+    export BUN_INSTALL="$HOME/.bun"
     _PATH_COMPONENTS+=("$HOME/.bun/bin")
 fi
 
 # Agregar PyEnv si está disponible (Python environment manager)
-if [[ -d "$HOME/.pyenv/bin" ]]; then
+if [[ -d "$HOME/.pyenv" ]]; then
+    export PYENV_ROOT="$HOME/.pyenv"
     _PATH_COMPONENTS+=(
-        "$HOME/.pyenv/shims"
-        "$HOME/.pyenv/bin"
+        "$PYENV_ROOT/shims"
+        "$PYENV_ROOT/bin"
     )
 fi
 
@@ -166,18 +181,14 @@ unset _PATH_COMPONENTS
 # CONFIGURACIÓN DE SHELLS ESPECÍFICOS
 # ============================================================================
 
-# Oh-My-Zsh (si zsh es el shell actual)
-if [[ "$SHELL" == *"zsh"* ]]; then
-    export ZSH="$XDG_DATA_HOME/oh-my-zsh"
-fi
-
 # Oh-My-Bash (si bash es el shell actual)
 if [[ "$SHELL" == *"bash"* ]]; then
     export OSH="$XDG_DATA_HOME/oh-my-bash"
 fi
 
-# Configuración ZDOTDIR para zsh (respeta XDG)
-if command -v zsh &>/dev/null; then
+# Oh-My-Zsh (si zsh es el shell actual)
+if [[ "$SHELL" == *"zsh"* ]]; then
+    export ZSH="$XDG_DATA_HOME/oh-my-zsh"
     export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
 fi
 

@@ -654,41 +654,45 @@ _lib_get_package_manager_commands() {
 #
 # Argumentos:
 #   $1: Distribución
-#   $2: Array de paquetes (pasado por nombre)
+#   $2: Nombre del array de paquetes (pasado por nombre)
+#   $3: Nombre del array destino para paquetes faltantes (pasado por nombre)
 #
 # Retorno:
 #   0: Todos los paquetes están disponibles
 #   1: Al menos un paquete falta
-#   Exporta variable: MISSING_PACKAGES[] con paquetes faltantes
 #
-# Ejemplo:
+# Uso:
 #   packages=("git" "curl" "jq")
-#   if _lib_check_packages_array "ubuntu" packages; then
+#   missing=()                      # declare aquí la lista vacía que quieras usar
+#   if _lib_check_packages_array "ubuntu" packages missing; then
 #       _lib_message -success "Todos los paquetes disponibles"
 #   else
-#       _lib_message -warning "Paquetes faltantes: ${MISSING_PACKAGES[*]}"
+#       _lib_message -warning "Paquetes faltantes: ${missing[*]}"
 #   fi
 
 _lib_check_packages_array() {
     local distro="$1"
     local -n packages_ref="$2"
-    MISSING_PACKAGES=()
-    
+    local -n missing_ref="$3"
+
+    # Inicializar salida
+    missing_ref=()
+
     # Obtener comandos del gestor de paquetes
     _lib_get_package_manager_commands "$distro" || return 1
-    
+
     # Verificar cada paquete
     for pkg in "${packages_ref[@]}"; do
         if command -v "$pkg" >/dev/null 2>&1; then
             _lib_message -success "$pkg -> disponible"
         else
             _lib_message -warning "$pkg -> no encontrado"
-            MISSING_PACKAGES+=("$pkg")
+            missing_ref+=("$pkg")
         fi
     done
-    
+
     # Retornar 0 si todos están disponibles, 1 si faltan
-    [[ ${#MISSING_PACKAGES[@]} -eq 0 ]]
+    [[ ${#missing_ref[@]} -eq 0 ]]
 }
 
 # ============================================================================
@@ -745,7 +749,7 @@ _lib_install_packages_array() {
     
     # Actualizar repositorios si no se omite
     if [[ "$skip_update" != "true" ]]; then
-        _lib_message -subtitle "Actualizando repositorios..."
+        _lib_message -info "Actualizando repositorios..."
         if ! eval "$PKG_UPDATE_CMD" &>/dev/null; then
             _lib_message -error "Error actualizando repositorios"
             return 1
@@ -766,14 +770,14 @@ _lib_install_packages_array() {
         if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
             # Verificar que se instaló correctamente
             if command -v "$pkg" &>/dev/null || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
-                _lib_message -success "✓ Instalado: $pkg"
+                _lib_message -success "Instalado: $pkg"
                 SUCCESSFUL_PACKAGES+=("$pkg")
             else
-                _lib_message -error "✗ Instalado pero no detectable: $pkg"
+                _lib_message -error "Instalado pero no detectable: $pkg"
                 FAILED_PACKAGES+=("$pkg")
             fi
         else
-            _lib_message -error "✗ Falló: $pkg"
+            _lib_message -error "Falló instalación: $pkg"
             FAILED_PACKAGES+=("$pkg")
         fi
         sleep 1
@@ -781,7 +785,7 @@ _lib_install_packages_array() {
     
     # Resumen
     [[ ${#SUCCESSFUL_PACKAGES[@]} -gt 0 ]] && \
-        _lib_message -success "Paquetes instalados: ${SUCCESSFUL_PACKAGES[*]}"
+        _lib_message -info "Paquetes instalados: ${SUCCESSFUL_PACKAGES[*]}"
 
     if [[ ${#FAILED_PACKAGES[@]} -gt 0 ]]; then
         _lib_message -warning "Paquetes que fallaron: ${FAILED_PACKAGES[*]}"

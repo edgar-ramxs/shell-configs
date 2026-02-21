@@ -35,6 +35,18 @@ function calc() {
 }
 
 
+function search-cat() {
+    local cmd=$(_lib_find_first_available_command bat batcat cat)
+    if [[ -n "$cmd" ]]; then
+        "$cmd" "$@"
+        return 0
+    else
+        _lib_message -error "No se encontró ningún comando 'cat' o 'bat'"
+        return 1
+    fi
+}
+
+
 function show_ascii() {
     local name="$1"
     local ascii_dir="${XDG_DATA_HOME:-"$HOME/.local/share"}/shells-configs/draws"
