@@ -447,6 +447,124 @@ _lib_lazy_load_function() {
     '
 }
 
+# ==========================================================================
+# FUNCIÓN: _lib_escape_for_sed
+# ==========================================================================
+# Escapa caracteres especiales para sustituciones con sed
+#
+# Argumentos:
+#   $1: Texto a escapar
+#
+# Retorno:
+#   Texto seguro para reemplazo en sed
+
+_lib_escape_for_sed() {
+    local str="$1"
+    str="${str//\\/\\\\}"
+    str="${str//\//\\/}"
+    str="${str//&/\\&}"
+    printf '%s' "$str"
+}
+
+# ==========================================================================
+# FUNCIÓN: _lib_render_template
+# ==========================================================================
+# Renderiza un archivo template reemplazando placeholders {{VAR}}
+#
+# Argumentos:
+#   $1: Ruta del template
+#   $2: Ruta de salida
+#   $3+: Lista de pares clave=valor para reemplazar
+#
+# Retorno:
+#   0 si se renderizó correctamente, 1 en caso de error
+
+_lib_render_template() {
+    local template_file="$1"
+    local output_file="$2"
+    shift 2
+
+    if [[ ! -f "$template_file" ]]; then
+        _lib_message -warning "Template no encontrado: $template_file"
+        return 1
+    fi
+
+    local sed_args=()
+    local pair key value
+    for pair in "$@"; do
+        key="${pair%%=*}"
+        value="${pair#*=}"
+        sed_args+=("-e" "s/{{${key}}}/$(_lib_escape_for_sed "$value")/")
+    done
+
+    if [[ ${#sed_args[@]} -eq 0 ]]; then
+        _lib_message -warning "Sin variables para renderizar template"
+        return 1
+    fi
+
+    sed "${sed_args[@]}" "$template_file" > "$output_file"
+}
+
+# ==========================================================================
+# FUNCIÓN: _lib_install_symlinks
+# ==========================================================================
+# Crea enlaces simbólicos de todos los archivos de un origen a un destino
+#
+# Argumentos:
+#   $1: Directorio origen
+#   $2: Directorio destino
+#   $3: Título para el mensaje (opcional)
+#
+# Retorno:
+#   0 si se procesó correctamente
+
+_lib_install_symlinks() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local title="${3:-Instalando enlaces simbólicos}"
+    local recursive="${4:-false}"
+
+    _lib_message -subtitle "$title"
+
+    if [[ ! -d "$src_dir" ]]; then
+        _lib_message -warning "Directorio origen no encontrado: $src_dir"
+        return 1
+    fi
+
+    _lib_ensure_dir "$dest_dir" || return 1
+
+    local created=false
+    local item base_name target_path
+    
+    # Usar dotglob para incluir archivos ocultos
+    for item in "$src_dir"/* "$src_dir"/.[!.]* "$src_dir"/..?*; do
+        # Validar que el item exista (evitar globs fallidos)
+        [[ -e "$item" ]] || continue
+        
+        base_name=$(basename "$item")
+        target_path="$dest_dir/$base_name"
+
+        if [[ -d "$item" && "$recursive" == "true" ]]; then
+            # Si es un directorio y estamos en modo recursivo, crear el directorio destino
+            # y llamar de nuevo; marcar 'created' solo si la recursión reporta éxito
+            if _lib_install_symlinks "$item" "$target_path" "Enlazando subdirectorio: $base_name" "true"; then
+                created=true
+            fi
+        elif [[ -f "$item" ]]; then
+            # Si es un archivo, crear el enlace
+            if ln -sfn "$item" "$target_path"; then
+                _lib_message -success "Enlace: $base_name -> $dest_dir"
+                created=true
+            else
+                _lib_message -error "Error al enlazar: $base_name"
+            fi
+        fi
+    done
+
+    [[ $created == true ]] || _lib_message -info "No se procesaron elementos en $(basename "$src_dir")"
+    return 0
+}
+
 # ============================================================================
 # FUNCIÓN: _lib_is_command_available
 # ============================================================================

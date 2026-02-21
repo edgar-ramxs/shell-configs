@@ -13,13 +13,13 @@ set -euo pipefail
 # VARIABLES GLOBALES Y CONFIGURACIÓN
 # ============================================================================
 readonly BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
 
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly HOMEFS_DIR="${SCRIPT_DIR}/source/home"
 readonly LOCALS_DIR="${SCRIPT_DIR}/source/local"
 readonly CONFIG_DIR="${SCRIPT_DIR}/source/config"
 readonly SHELLS_DIR="${SCRIPT_DIR}/source/shells"
+readonly DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
 
 readonly TARGET_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/shells-configs"
 readonly TARGET_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shells-configs"
@@ -30,28 +30,26 @@ DISTRO=""
 IS_WSL2=false
 CURRENT_SHELL=""
 SHELL_DETECTED="unknown"
-LINUX_DEPS_MISSING=()
-GITHUB_REPOS_MISSING=()
+MISSING_PKGS=()
+MISSING_REPS=()
 
-if ! source "${CONFIG_DIR}/library"; then
+if ! source "${CONFIG_DIR}/library.sh"; then
     echo "Error: No se pudo cargar la librería compartida"
     exit 1
 fi
 
 show_banner() {
-    local archivo_banner
     local banner_name="${1:-banner.txt}"
+    _lib_validate_required_param "$banner_name" "Uso: show_banner <nombre_ascii>" || return 1
 
-    archivo_banner="$SCRIPT_DIR/assets/console/$banner_name"
+    local archivo_banner="$SCRIPT_DIR/source/console/$banner_name"
+    _lib_validate_file_with_message "$archivo_banner" "Error: No se encontró el archivo $banner_name" || return 1
 
-    if [[ -f "$archivo_banner" ]]; then
-        echo -e "\e[1;34m"
-        cat "$archivo_banner"
-        echo -e "\e[0m"
-    else
-        message -error "Error: No se encontró el archivo $archivo_banner"
-        return 1
-    fi
+    echo -e "\e[1;34m"
+    cat "$archivo_banner"
+    echo -e "\e[0m"
+
+    sleep 2
 }
 
 # ============================================================================
@@ -83,40 +81,38 @@ validate_xdg_directories || {
 # ============================================================================
 
 detect_shell() {
-    message -subtitle "Detectando shell actual..."
+    _lib_message -subtitle "Detectando shell actual..."
     CURRENT_SHELL="${SHELL##*/}"
     case "$CURRENT_SHELL" in
-        bash)   SHELL_DETECTED="bash"; message -success "Shell detectado: Bash";;
-        zsh)    SHELL_DETECTED="zsh";  message -success "Shell detectado: Zsh";;
-        fish)   SHELL_DETECTED="fish"; message -success "Shell detectado: Fish";;
-        *)      SHELL_DETECTED="unknown"; message -warning "Shell desconocido: $CURRENT_SHELL";;
+        bash)   SHELL_DETECTED="bash"; _lib_message -success "Shell detectado: Bash";;
+        zsh)    SHELL_DETECTED="zsh";  _lib_message -success "Shell detectado: Zsh";;
+        *)      SHELL_DETECTED="unknown"; _lib_message -warning "Shell desconocido: $CURRENT_SHELL";;
     esac
 }
 
 detect_wsl2() {
-    message -subtitle "Detectando entorno WSL2..."
+    _lib_message -subtitle "Detectando entorno WSL2..."
     if [[ -f /proc/version ]] && grep -qi "microsoft" /proc/version; then
         IS_WSL2=true
-        message -success "Entorno WSL2 detectado"
+        _lib_message -success "Entorno WSL2 detectado"
     else
-        message -info "Entorno nativo Linux detectado"
+        _lib_message -info "Entorno nativo Linux detectado"
     fi
 }
 
 detect_distro() {
-    message -subtitle "Detectando distribución Linux..."
+    _lib_message -subtitle "Detectando distribución Linux..."
     if [[ -f /etc/os-release ]]; then
         source /etc/os-release
         DISTRO="${ID:-unknown}"
-        message -success "Distribución detectada: ${PRETTY_NAME:-$DISTRO}"
+        _lib_message -success "Distribución detectada: ${PRETTY_NAME:-$DISTRO}"
     else
         DISTRO="unknown"
-        message -warning "No se pudo detectar la distribución"
+        _lib_message -warning "No se pudo detectar la distribución"
     fi
 }
 
 system_detection() {
-    message -title "DETECCIÓN DEL SISTEMA"
     sleep 1
     detect_shell
     sleep 1
@@ -131,174 +127,63 @@ system_detection() {
 # ============================================================================
 
 parse_dependencies() {
-    message -subtitle "LEYENDO CONFIGURACIÓN DE DEPENDENCIAS"
+    _lib_message -subtitle "LEYENDO CONFIGURACIÓN DE DEPENDENCIAS"
     sleep 2
     
     # Verificar archivo de dependencias
     if [[ ! -f "$DEPS_FILE" ]]; then
-        message -error "Archivo de dependencias no encontrado: $DEPS_FILE"
+        _lib_message -error "Archivo de dependencias no encontrado: $DEPS_FILE"
         return 1
     fi
     
-    message -success "Archivo de dependencias cargado: $DEPS_FILE"
-    message -info "XDG Config: ${XDG_CONFIG_HOME:-$HOME/.config}"
-    message -info "XDG Data:   ${XDG_DATA_HOME:-$HOME/.local/share}"
+    _lib_message -info "Archivo de dependencias cargado: $DEPS_FILE"
+    _lib_message -warning "XDG Config: ${XDG_CONFIG_HOME:-$HOME/.config}"
+    _lib_message -warning "XDG Data:   ${XDG_DATA_HOME:-$HOME/.local/share}"
 }
 
 check_linux_dependencies() {
-    message -subtitle "VERIFICANDO PAQUETES DE LINUX"
-    LINUX_DEPS_MISSING=()
+    _lib_message -subtitle "VERIFICANDO PAQUETES DE LINUX"
     local deps=()
-    local in_linux=false
-    local in_packages=false
+    mapfile -t deps < <(tomlq -r '.linux.packages[].name' "$DEPS_FILE")
+    
+    if [[ ${#deps[@]} -eq 0 ]]; then
+        _lib_message -warning "No se encontraron paquetes en $DEPS_FILE"
+        return 0
+    fi
 
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line#"${line%%[![:space:]]*}"}"
-        line="${line%"${line##*[![:space:]]}"}"
-
-        [[ -z "$line" || "$line" == \#* ]] && continue
-
-        if [[ "$line" == "[linux]" ]]; then
-            in_linux=true
-            continue
-        fi
-
-        if [[ "$line" == \[*\] && "$in_linux" == true ]]; then
-            break
-        fi
-
-        if [[ "$in_linux" == true && "$line" == "packages = [" ]]; then
-            in_packages=true
-            continue
-        fi
-
-        if [[ "$in_packages" == true && "$line" == "]" ]]; then
-            break
-        fi
-
-        if [[ "$in_packages" == true && "$line" =~ \"([^\"]+)\" ]]; then
-            deps+=("${BASH_REMATCH[1]}")
-        fi
-    done < "$DEPS_FILE"
-
-    for dep in "${deps[@]}"; do
-        if command -v "$dep" >/dev/null 2>&1; then
-            message -success "$dep -> disponible"
-        else
-            message -warning "$dep -> no encontrado"
-            LINUX_DEPS_MISSING+=("$dep")
-        fi
-    done
+    _lib_check_packages_array "$DISTRO" deps MISSING_PKGS
 }
 
 check_github_dependencies() {
-    message -subtitle "VERIFICANDO REPOSITORIOS DE GITHUB"
-    GITHUB_REPOS_MISSING=()
-    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    local repos_base="$data_dir/repositories"
-    local in_section=false
+    _lib_message -subtitle "VERIFICANDO REPOSITORIOS DE GITHUB"
+    MISSING_REPS=()
+    local repos_base="${XDG_DATA_HOME:-$HOME/.local/share}/repositories"
+    
+    local repo_names=()
+    mapfile -t repo_names < <(tomlq -r '.repositories.repos[].name' "$DEPS_FILE")
 
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "$line" || "$line" =~ ^# ]] && continue
-
-        if [[ "$line" =~ ^\[repositories\]$ ]]; then
-            in_section=true
-            continue
+    for name in "${repo_names[@]}"; do
+        if [[ -d "$repos_base/$name/.git" ]]; then
+            _lib_message -success "$name -> disponible"
+        else
+            _lib_message -warning "$name -> no encontrado"
+            MISSING_REPS+=("$name")
         fi
-
-        if [[ "$line" =~ ^\[ && "$in_section" == true ]]; then
-            break
-        fi
-
-        [[ "$in_section" != true ]] && continue
-
-        if [[ "$line" =~ name[[:space:]]*=[[:space:]]*\"([^\"]+)\" ]]; then
-            local name="${BASH_REMATCH[1]}"
-            local repo_dir="$repos_base/$name"
-
-            if [[ -d "$repo_dir/.git" ]]; then
-                message -success "$name -> disponible"
-            else
-                message -warning "$name -> no encontrado"
-                GITHUB_REPOS_MISSING+=("$name")
-            fi
-        fi
-    done < "$DEPS_FILE"
+    done
 }
 
 install_core_dependencies() {
-    message -subtitle "INSTALANDO DEPENDENCIAS CORE"
+    _lib_message -subtitle "INSTALANDO DEPENDENCIAS CORE"
     local core_packages=("git" "curl" "wget" "jq" "yq")
-    local failed_packages=()
-    local PKG_UPDATE_CMD=""
-    local PKG_INSTALL_CMD=""
-
-    case "$DISTRO" in
-        ubuntu|debian)
-            PKG_UPDATE_CMD="sudo apt update -qq"
-            PKG_INSTALL_CMD="sudo apt install -y"
-            ;;
-        arch|manjaro)
-            PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
-            PKG_INSTALL_CMD="sudo pacman -S --noconfirm"
-            ;;
-        fedora|rhel)
-            PKG_UPDATE_CMD="sudo dnf check-update"
-            PKG_INSTALL_CMD="sudo dnf install -y"
-            ;;
-        *)
-            message -error "Distribución no soportada: $DISTRO"
-            return 1
-            ;;
-    esac
-
-    # Obtener permisos sudo
-    sudo -n true 2>/dev/null || sudo true || {
-        message -error "No se pudieron obtener permisos de sudo"
-        return 1
-    }
-
-    # Actualizar repositorios
-    eval "$PKG_UPDATE_CMD" &>/dev/null || {
-        message -error "Error actualizando repositorios"
-        return 1
-    }
-
-    # Instalar paquetes core
-    for pkg in "${core_packages[@]}"; do
-        if command -v "$pkg" >/dev/null 2>&1; then
-            message -success "$pkg -> ya disponible"
-            continue
-        fi
-
-        message -info "Instalando: $pkg"
-        if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
-            message -success "✓ Instalado: $pkg"
-        else
-            message -error "✗ Falló: $pkg"
-            failed_packages+=("$pkg")
-        fi
-    done
-
-    [[ ${#failed_packages[@]} -eq 0 ]] || {
-        message -warning "Paquetes que fallaron: ${failed_packages[*]}"
-        return 1
-    }
-
-    return 0
+    _lib_install_packages_array "$DISTRO" core_packages
 }
 
 check_dependencies() {
-    message -title "VERIFICACIÓN DE DEPENDENCIAS"
-
-    # Instalar dependencias core primero
-    install_core_dependencies || message -warning "Algunas dependencias core fallaron"
-
     parse_dependencies || return 1
     check_linux_dependencies
     check_github_dependencies
 
-    if [[ ${#LINUX_DEPS_MISSING[@]} -gt 0 ]] || [[ ${#GITHUB_REPOS_MISSING[@]} -gt 0 ]]; then
+    if [[ ${#MISSING_PKGS[@]} -gt 0 ]] || [[ ${#MISSING_REPS[@]} -gt 0 ]]; then
         return 1
     fi
 
@@ -306,131 +191,39 @@ check_dependencies() {
 }
 
 install_linux_dependencies() {
-    if [[ ${#LINUX_DEPS_MISSING[@]} -eq 0 ]]; then
-        message -success "No hay paquetes de Linux pendientes"
+    if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
+        _lib_message -success "No hay paquetes de Linux pendientes"
         return 0
     fi
-    message -title "INSTALANDO PAQUETES DE LINUX"
-    sleep 1
-
-    local system_deps=("${LINUX_DEPS_MISSING[@]}")
-    local failed_packages=()
-    local successful_packages=()
-    local PKG_UPDATE_CMD=""
-    local PKG_INSTALL_CMD=""
-    local PKG_CHECK_CMD=""
-
-    case "$DISTRO" in
-        ubuntu|debian)
-            PKG_UPDATE_CMD="sudo apt update -qq"
-            PKG_INSTALL_CMD="sudo apt install -y"
-            PKG_CHECK_CMD="dpkg -l"
-            ;;
-        arch|manjaro)
-            PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
-            PKG_INSTALL_CMD="sudo pacman -S --noconfirm"
-            PKG_CHECK_CMD="pacman -Q"
-            ;;
-        fedora|rhel)
-            PKG_UPDATE_CMD="sudo dnf check-update"
-            PKG_INSTALL_CMD="sudo dnf install -y"
-            PKG_CHECK_CMD="dnf list installed"
-            ;;
-        *)
-            message -error "Distribución no soportada: $DISTRO"
-            message -warning "Instale manualmente: ${system_deps[*]}"
-            return 1
-            ;;
-    esac
-
-    # ------------------------------------------------------------
-    # Solicitar sudo una sola vez
-    # ------------------------------------------------------------
-    message -warning "Se requieren permisos de sudo"
-    local sudo_attempt=0
-    while (( sudo_attempt < 3 )); do
-        sudo -n true 2>/dev/null || sudo true && break
-        ((sudo_attempt++))
-        sleep 1
-    done
-
-    if (( sudo_attempt >= 3 )); then
-        message -error "No se pudieron obtener permisos de sudo"
-        return 1
-    fi
-    message -success "Permisos de sudo obtenidos"
-
-    # ------------------------------------------------------------
-    # Actualizar repositorios
-    # ------------------------------------------------------------
-    if ! eval "$PKG_UPDATE_CMD" &>/dev/null; then
-        message -error "Error actualizando repositorios"
-        return 1
-    fi
-
-    # ------------------------------------------------------------
-    # Instalación de paquetes
-    # ------------------------------------------------------------
-    message -subtitle "Instalando paquetes..."
-    for dep in "${system_deps[@]}"; do
-        local pkg="$dep"
-        message -info "Instalando: $pkg"
-        if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
-            if command -v "$pkg" &>/dev/null || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
-                message -success "✓ Instalado: $dep"
-                successful_packages+=("$dep")
-            else
-                message -error "✗ Instalado pero no detectable: $pkg"
-                failed_packages+=("$dep")
-            fi
-        else
-            message -error "✗ Falló: $dep"
-            failed_packages+=("$dep")
-        fi
-        sleep 1
-    done
-
-    # ------------------------------------------------------------
-    # Resumen
-    # ------------------------------------------------------------
-    [[ ${#successful_packages[@]} -gt 0 ]] && \
-        message -success "Paquetes instalados: ${successful_packages[*]}"
-
-    if [[ ${#failed_packages[@]} -gt 0 ]]; then
-        message -warning "Paquetes que fallaron: ${failed_packages[*]}"
-        return 1
-    fi
-
-    return 0
+    _lib_message -title "INSTALANDO PAQUETES DE LINUX"
+    _lib_install_packages_array "$DISTRO" MISSING_PKGS
 }
 
 install_github_dependencies() {
-    [[ ${#GITHUB_REPOS_MISSING[@]} -eq 0 ]] && {
-        message -success "No hay repositorios pendientes"
+    if [[ ${#MISSING_REPS[@]} -eq 0 ]]; then
+        _lib_message -success "No hay repositorios pendientes"
         return 0
-    }
+    fi
 
-    message -title "INSTALANDO REPOSITORIOS DE GITHUB"
+    _lib_message -title "INSTALANDO REPOSITORIOS DE GITHUB"
+    local repos_base="${XDG_DATA_HOME:-$HOME/.local/share}/repositories"
+    _lib_ensure_dir "$repos_base" || return 1
 
-    local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}"
-    local repos_base="$data_dir/repositories"
-    mkdir -p "$repos_base"
-
-    for repo in "${GITHUB_REPOS_MISSING[@]}"; do
+    for repo in "${MISSING_REPS[@]}"; do
         local url
-        url=$(grep -A5 "name *= *\"$repo\"" "$DEPS_FILE" \
-            | grep url \
-            | sed -E 's/.*"([^"]+)".*/\1/')
+        url=$(tomlq -r ".repositories.repos[] | select(.name == \"$repo\") | .url" "$DEPS_FILE")
 
-        [[ -z "$url" ]] && {
-            message -error "No se encontró URL para $repo"
+        if [[ -z "$url" || "$url" == "null" ]]; then
+            _lib_message -error "No se encontró URL para $repo"
             continue
-        }
+        fi
 
-        message -info "Clonando $repo..."
-        git clone "$url" "$repos_base/$repo" \
-            && message -success "$repo instalado" \
-            || message -error "Error instalando $repo"
+        _lib_message -info "Clonando $repo..."
+        if git clone "$url" "$repos_base/$repo" &>/dev/null; then
+            _lib_message -success "$repo instalado"
+        else
+            _lib_message -error "Error instalando $repo"
+        fi
     done
 }
 
@@ -444,49 +237,71 @@ install_github_dependencies() {
 # ============================================================================
 
 backup_existing_files() {
-    return 0
-    #     message -title "CREANDO BACKUP DE CONFIGURACIONES ACTUALES"
-    #     sleep 2
-        
-    #     mkdir -p "$TARGET_BACKUP_DIR"
-    #     local backup_dir="${TARGET_BACKUP_DIR}/${BACKUP_TIMESTAMP}"
-    #     mkdir -p "$backup_dir"
-        
-    #     message -subtitle "Guardando archivos existentes..."
-        
-    #     # Archivos a hacer backup (solo ~/ y configs del proyecto)
-    #     local items_to_backup=(
-    #         "$HOME/.bashrc"
-    #         "$HOME/.zshrc"
-    #         "$HOME/.bash_logout"
-    #         "$HOME/.p10k.zsh"
-    #         "$TARGET_CONFIG_DIR/aliases"
-    #         "$TARGET_CONFIG_DIR/exports"
-    #         "$TARGET_CONFIG_DIR/functions"
-    #     )
-        
-    #     for item in "${items_to_backup[@]}"; do
-    #         if [[ -e "$item" ]]; then
-    #             local rel_path="${item#"$HOME"/}"
-    #             local dest_path="$backup_dir/$rel_path"
-    #             mkdir -p "$(dirname "$dest_path")"
-    #             cp -r "$item" "$dest_path"
-    #             message -success "Backup: $rel_path"
-    #         fi
-    #     done
-        
-    #     # Crear archivo de metadata
-    #     cat > "$backup_dir/backup-info.txt" << EOF
-    # Backup creado: $(date '+%Y-%m-%d %H:%M:%S')
-    # Timestamp: $BACKUP_TIMESTAMP
-    # Sistema: $(uname -s)
-    # Distro: $(lsb_release -ds 2>/dev/null || echo "Unknown")
-    # Shell: $SHELL_DETECTED
-    # Hostname: $(hostname)
-    # Usuario: $(whoami)
-    # EOF
-        
-    #     message -success "Backup guardado en: $backup_dir"
+    _lib_message -subtitle "CREANDO BACKUP DE CONFIGURACIONES ACTUALES"
+    sleep 1
+
+    local items_to_backup=(
+        "$HOME/.hushlogin"
+        "$HOME/.profile"
+        "$HOME/.bashrc"
+        "$HOME/.zshrc"
+        "$HOME/.bash_logout"
+        "$HOME/.p10k.zsh"
+    )
+
+    local real_files=()
+    local item
+    for item in "${items_to_backup[@]}"; do
+        if [[ -e "$item" && ! -L "$item" ]]; then
+            real_files+=("$item")
+        else
+            _lib_message -warning "Omitiendo enlace simbólico o inexistente: ${item#"$HOME"/}"
+        fi
+    done
+
+    if [[ ${#real_files[@]} -eq 0 ]]; then
+        _lib_message -info "No hay archivos reales para respaldar; proceso omitido"
+        return 0
+    fi
+
+    _lib_ensure_dir "$TARGET_BACKUP_DIR"
+    local backup_dir="${TARGET_BACKUP_DIR}/backup/${BACKUP_TIMESTAMP}"
+    _lib_ensure_dir "$backup_dir"
+
+    _lib_message -subtitle "Guardando archivos existentes..."
+    local backed_up=false
+    for item in "${real_files[@]}"; do
+        local rel_path="${item#"$HOME"/}"
+        local dest_path="$backup_dir/$rel_path"
+        _lib_ensure_dir "$(dirname "$dest_path")"
+        cp -r "$item" "$dest_path"
+        _lib_message -success "Backup: $rel_path"
+        backed_up=true
+    done
+    
+    # Crear archivo de metadata a partir del template
+    local template_file="$SCRIPT_DIR/source/templates/backup-info.txt"
+    if [[ -f "$template_file" ]]; then
+        local backup_created distro_name system_name host_name user_name
+        backup_created=$(date '+%Y-%m-%d %H:%M:%S')
+        distro_name=$(lsb_release -ds 2>/dev/null || echo "Unknown")
+        system_name=$(uname -s)
+        host_name=$(hostname)
+        user_name=$(whoami)
+
+        _lib_render_template "$template_file" "$backup_dir/backup-info.txt" \
+            "BACKUP_CREATED=$backup_created" \
+            "BACKUP_TIMESTAMP=$BACKUP_TIMESTAMP" \
+            "SYSTEM_NAME=$system_name" \
+            "DISTRO_NAME=$distro_name" \
+            "SHELL_NAME=$SHELL_DETECTED" \
+            "HOST_NAME=$host_name" \
+            "USER_NAME=$user_name"
+    else
+        _lib_message -warning "Template de backup-info no encontrado; se omite metadata"
+    fi
+    
+    _lib_message -success "Backup guardado en: $backup_dir"
 }
 
 # ============================================================================
@@ -494,77 +309,23 @@ backup_existing_files() {
 # ============================================================================
 
 install_config_files() {
-    message -title "INSTALANDO ARCHIVOS DE CONFIGURACIÓN"
-    sleep 2
-    
-    mkdir -p "$TARGET_CONFIG_DIR"
-    
-    message -subtitle "Copiando archivos de config..."
-    
-    local config_files=("aliases" "exports" "functions")
-    for file in "${config_files[@]}"; do
-        if [[ -f "$CONFIG_DIR/$file" ]]; then
-            cp "$CONFIG_DIR/$file" "$TARGET_CONFIG_DIR/$file"
-            chmod 644 "$TARGET_CONFIG_DIR/$file"
-            message -success "Copiado: $file"
-        fi
-    done
-}
+    _lib_message -title "INSTALANDO ARCHIVOS DE CONFIGURACIÓN"
+    sleep 1
 
-install_shell_rc_files() {
-    message -title "INSTALANDO ARCHIVOS DE SHELL RC"
-    sleep 2
-    
-    message -subtitle "Instalando archivos de shell desde shells/..."
-    
-    # Instalar archivos Bash (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/bash/.bashrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.bashrc" ]] && cp "$HOME/.bashrc" "$HOME/.bashrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/bash/.bashrc" "$HOME/.bashrc"
-        message -success "Instalado: ~/.bashrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/bash/.bash_logout" ]]; then
-        cp "$SHELLS_DIR/bash/.bash_logout" "$HOME/.bash_logout"
-        message -success "Instalado: ~/.bash_logout"
-    fi
-    
-    # Instalar archivos Zsh (directamente en ~/)
-    if [[ -f "$SHELLS_DIR/zsh/.zshrc" ]]; then
-        # Backup si ya existe en home
-        [[ -f "$HOME/.zshrc" ]] && cp "$HOME/.zshrc" "$HOME/.zshrc.backup-$(date +%Y%m%d_%H%M%S)"
-        # Copiar directamente a home
-        cp "$SHELLS_DIR/zsh/.zshrc" "$HOME/.zshrc"
-        message -success "Instalado: ~/.zshrc"
-    fi
-    
-    if [[ -f "$SHELLS_DIR/zsh/.p10k.zsh" ]]; then
-        cp "$SHELLS_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
-        message -success "Instalado: ~/.p10k.zsh"
-    fi
-}
+    # 1. Enlaces de configuración (source/config -> TARGET_CONFIG_DIR)
+    _lib_install_symlinks "$CONFIG_DIR" "$TARGET_CONFIG_DIR" "Enlaces de configuración"
 
-install_scripts() {
-    message -title "INSTALANDO SCRIPTS"
-    sleep 2
-    
-    mkdir -p "$TARGET_LOCALS_DIR"
-    
-    message -subtitle "Copiando scripts..."
-    
-    if [[ -d "$LOCALS_DIR" ]]; then
-        for script in "$LOCALS_DIR"/*; do
-            if [[ -f "$script" ]]; then
-                local script_name
-                script_name=$(basename "$script")
-                cp "$script" "$TARGET_LOCALS_DIR/$script_name"
-                chmod +x "$TARGET_LOCALS_DIR/$script_name"
-                message -success "Script: $script_name"
-            fi
-        done
+    # 2. Enlaces de home (source/home -> $HOME)
+    _lib_install_symlinks "$HOMEFS_DIR" "$HOME" "Enlaces de archivos home"
+
+    # 3. Enlaces de shell específica (source/shells/{shell} -> $HOME)
+    if [[ "$SHELL_DETECTED" != "unknown" ]]; then
+        local shell_src="${SHELLS_DIR}/${SHELL_DETECTED}"
+        _lib_install_symlinks "$shell_src" "$HOME" "Enlaces de archivos para ${SHELL_DETECTED}"
     fi
+
+    # 4. Enlaces de scripts locales (source/local -> TARGET_LOCALS_DIR) recursivo
+    _lib_install_symlinks "$LOCALS_DIR" "$TARGET_LOCALS_DIR" "Enlaces de scripts locales" "true"
 }
 
 # ============================================================================
@@ -628,25 +389,32 @@ validate_installation() {
 # ============================================================================
 
 show_summary() {
-    message -title "RESUMEN DE INSTALACIÓN"
+    _lib_message -title "RESUMEN DE INSTALACIÓN"
     
-    echo -e "${CYAN}Sistema:${RESET}"
-    echo "  • Shell: $SHELL_DETECTED"
-    echo "  • Distribución: $DISTRO"
-    echo "  • WSL2: $([ "$IS_WSL2" = true ] && echo "Sí" || echo "No")"
+    _lib_message -subtitle "Sistema:"
+    _lib_message -info "WSL2: $([ "$IS_WSL2" = true ] && echo "Sí" || echo "No")"
+    _lib_message -info "Distribución: $DISTRO"
+    _lib_message -info "Shell: $SHELL_DETECTED"
+    echo ""
+
+    _lib_message -subtitle "Directorios:"
+    _lib_message -info "Configuraciones: $TARGET_CONFIG_DIR"
+    _lib_message -info "Scripts: $TARGET_LOCALS_DIR"
+    _lib_message -info "Backups: $TARGET_BACKUP_DIR/backup/$BACKUP_TIMESTAMP"
     echo ""
     
-    echo -e "${CYAN}Directorios:${RESET}"
-    echo "  • Configuraciones: $TARGET_CONFIG_DIR"
-    echo "  • Scripts: $TARGET_LOCALS_DIR"
-    echo "  • Backups: $TARGET_BACKUP_DIR/$BACKUP_TIMESTAMP"
-    echo ""
-    
-    if [[ ${#DEPENDENCIES_MISSING[@]} -eq 0 ]]; then
-        echo -e "${GREEN}Todas las dependencias están instaladas${RESET}"
+    _lib_message -subtitle "Dependencias:"
+    if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
+        _lib_message -info "Todas las dependencias están instaladas"
     else
-        echo -e "${YELLOW}Dependencias faltantes: ${DEPENDENCIES_MISSING[*]}${RESET}"
+        _lib_message -info "Dependencias faltantes:"
+        _lib_message -warning "${MISSING_PKGS[*]}"
     fi
+    echo ""
+
+    _lib_message -subtitle "Para aplicar los cambios, reinicie su terminal o ejecute:"
+    _lib_message -info "source ~/.${SHELL_DETECTED}rc"
+    echo ""
 }
 
 # ============================================================================
@@ -654,64 +422,66 @@ show_summary() {
 # ============================================================================
 
 main() {
+    # Limpiar pantalla al iniciar
     clear
 
     # Mostrar banner
     show_banner
-    
-    # Ejecución de pasos principales
+    _lib_message -title "INICIANDO INSTALACIÓN DE SHELL CONFIGS..."; sleep 1;
+
+    # PASO 1: Ejecución de pasos principales
+    _lib_message -title "PASO 1: Detección del sistema"
     system_detection
-    
-    # Verificar dependencias
-    if ! check_dependencies; then
-        message -info "Se detectaron dependencias faltantes. Intentando instalar automáticamente..."
 
-        if [[ ${#LINUX_DEPS_MISSING[@]} -gt 0 ]]; then
-            message -info "Instalando paquetes de Linux faltantes..."
-            # install_linux_dependencies || message -warning "Algunos paquetes Linux fallaron"
-            message -info "Dependencias Linux no encontradas: ${#LINUX_DEPS_MISSING[@]}"
+    # PASO 2: Instalación de dependencias core
+    _lib_message -title "PASO 2: Instalación de paquetes CORE del sistema"
+    if _lib_get_package_manager_commands "$DISTRO" >/dev/null 2>&1; then
+        # Paquetes esenciales para el funcionamiento del script y utilidades comunes
+        local core_packages=(git curl wget jq yq vim cmatrix)
+        
+        _lib_message -subtitle "Paquetes CORE: ${core_packages[*]}"
+        if _lib_install_packages_array "$DISTRO" core_packages; then
+            _lib_message -success "Paquetes CORE instalados exitosamente"
+        else
+            _lib_message -warning "Algunos paquetes CORE no pudieron instalarse"
         fi
-        sleep 2
-
-        if [[ ${#GITHUB_REPOS_MISSING[@]} -gt 0 ]]; then
-            message -info "Instalando repositorios GitHub faltantes..."
-            # install_github_dependencies || message -warning "Algunos repositorios fallaron"
-            message -info "Dependencias Github no encontradas: ${#GITHUB_REPOS_MISSING[@]}"
-        fi
-        sleep 2
-
+    else
+        _lib_message -warning "Gestor de paquetes no soportado para distro: $DISTRO"
+        return 1
     fi
     
-    # message -title "PASO 2: Backup de configuraciones actuales"
-    # backup_existing_files
-    # sleep 2
-    
-    # message -title "PASO 3: Instalando archivos de configuración"
+    # PASO 3: Verificación e instalación de dependencias del proyecto
+    _lib_message -title "PASO 3: Gestión de dependencias del proyecto"
+    if ! check_dependencies; then
+        _lib_message -info "Se detectaron dependencias faltantes en el proyecto"
+
+        if [[ ${#MISSING_PKGS[@]} -gt 0 ]]; then
+            _lib_message -subtitle "Instalando paquetes faltantes: ${#MISSING_PKGS[@]}"
+            # install_linux_dependencies || _lib_message -warning "Algunos paquetes fallaron"
+        fi
+
+        if [[ ${#MISSING_REPS[@]} -gt 0 ]]; then
+            _lib_message -subtitle "Instalando repositorios faltantes: ${#MISSING_REPS[@]}"
+            # install_github_dependencies || _lib_message -warning "Algunos repositorios fallaron"
+        fi
+    else
+        _lib_message -success "Todas las dependencias del proyecto están satisfechas"
+    fi
+
+
+    # PASO 4: Backup de configuraciones actuales
+    _lib_message -title "PASO 4: Backup de configuraciones actuales"
+    backup_existing_files
+
+    # # PASO 5: Instalación de archivos de configuración
+    # _lib_message -title "PASO 5: Instalación de archivos de configuración"
     # install_config_files
-    # sleep 2
+
     
-    # message -title "PASO 4: Instalando archivos de shell"
-    # install_shell_rc_files
-    # sleep 2
+
     
-    # message -title "PASO 5: Instalando scripts"
-    # install_scripts
-    # sleep 2
+    show_summary
     
-    # if validate_installation; thencd
-    #     message -success "✓ Instalación completada exitosamente"
-    # else
-    #     message -error "✗ Se encontraron errores durante la validación"
-    # fi
-    
-    # show_summary
-    
-    # echo ""
-    # message -warning "Para aplicar los cambios, ejecute:"
-    # echo -e "${CYAN}  source ~/.bashrc   # o${RESET}"
-    # echo -e "${CYAN}  source ~/.zshrc    # según su shell${RESET}"
-    
-    echo ""
 }
 
 # Ejecutar main
