@@ -13,11 +13,7 @@ fi
 [ -f "$XDG_CONFIG_HOME/shell-configs/functions" ] && source "$XDG_CONFIG_HOME/shell-configs/functions"
 [ -f "$XDG_CONFIG_HOME/shell-configs/aliases" ] && source "$XDG_CONFIG_HOME/shell-configs/aliases"
 
-export HISTSIZE=10000
-export SAVEHIST=$HISTSIZE
 export HISTFILE="$XDG_CACHE_HOME/shells-configs/zsh_history"
-
-# Asegurar directorio de historial
 mkdir -p "$(dirname "$HISTFILE")"
 
 plugins=(
