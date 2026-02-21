@@ -1,7 +1,7 @@
-Backup creado: $(date '+%Y-%m-%d %H:%M:%S')
-Timestamp: $BACKUP_TIMESTAMP
-Sistema: $(uname -s)
-Distro: $(lsb_release -ds 2>/dev/null || echo "Unknown")
-Shell: $SHELL_DETECTED
-Hostname: $(hostname)
-Usuario: $(whoami)
+Backup creado: {{BACKUP_CREATED}}
+Timestamp: {{BACKUP_TIMESTAMP}}
+Sistema: {{SYSTEM_NAME}}
+Distro: {{DISTRO_NAME}}
+Shell: {{SHELL_NAME}}
+Hostname: {{HOST_NAME}}
+Usuario: {{USER_NAME}}
