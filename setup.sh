@@ -677,8 +677,12 @@ install_symlinks() {
     _lib_message -subtitle "Archivos para shell: $target_shell"
 
     local shell_src="${SHELLS_DIR}/${target_shell}"
+    if [[ "$VERBOSE" == "true" ]]; then
+        _lib_message -info "shell_src: $shell_src"
+    fi
     if [[ -d "$shell_src" ]]; then
-        for file in "$shell_src"/.* "$shell_src"/*; do
+        shopt -s nullglob
+        for file in "$shell_src"/*; do
             [[ -e "$file" ]] || continue
             [[ -f "$file" ]] || continue
             local filename
@@ -694,6 +698,7 @@ install_symlinks() {
                 }
             fi
         done
+        shopt -u nullglob
     else
         _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
