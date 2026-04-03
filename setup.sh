@@ -15,48 +15,157 @@ set -euo pipefail
 readonly BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly HOMEFS_DIR="${SCRIPT_DIR}/source/home"
-readonly LOCALS_DIR="${SCRIPT_DIR}/source/local"
-readonly CONFIG_DIR="${SCRIPT_DIR}/source/config"
-readonly SHELLS_DIR="${SCRIPT_DIR}/source/shells"
-readonly DEPS_FILE="${SCRIPT_DIR}/dependencies.toml"
+readonly HOMEFS_DIR="${SCRIPT_DIR}/src/home"
+readonly CONFIG_DIR="${SCRIPT_DIR}/src/config"
+readonly SHELLS_DIR="${SCRIPT_DIR}/src/home/shells"
+readonly DEPS_FILE="${SCRIPT_DIR}/src/packages/dependencies.toml"
+readonly SCRIPTS_DIR="${SCRIPT_DIR}/src/bin/scripts"
+readonly DRAWS_DIR="${SCRIPT_DIR}/src/bin/draws"
 
 readonly TARGET_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/shells-configs"
 readonly TARGET_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shells-configs"
 readonly TARGET_LOCALS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/shells-configs"
 readonly TARGET_BACKUP_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/shells-configs"
 
+readonly REPOS_BASE="${XDG_DATA_HOME:-$HOME/.local/share}/repositories"
+
 DISTRO=""
 IS_WSL2=false
 CURRENT_SHELL=""
-SHELL_DETECTED="unknown"
+SHELL_DETECTED="bash"
 MISSING_PKGS=()
-MISSING_REPS=()
+MISSING_REPOS=()
+
+INSTALL_SHELL="bash"
+INSTALL_DEPS_LINUX=false
+INSTALL_DEPS_PYTHON=false
+INSTALL_DEPS_NODE=false
+INSTALL_DEPS_RUST=false
+INSTALL_DEPS_GO=false
+INSTALL_REPOS=false
+INSTALL_BACKUP=false
+INSTALL_VALIDATE=false
+INSTALL_ALL=false
+DRY_RUN=false
+VERBOSE=false
 
 if ! source "${CONFIG_DIR}/library.sh"; then
     echo "Error: No se pudo cargar la librería compartida"
     exit 1
 fi
 
+# ============================================================================
+# PARSEO DE FLAGS
+# ============================================================================
+
+parse_flags() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --shell)
+                if [[ -z "${2:-}" ]]; then
+                    _lib_message -error "Error: --shell requiere un argumento"
+                    return 1
+                fi
+                case "$2" in
+                    bash|zsh) INSTALL_SHELL="$2" ;;
+                    *) _lib_message -error "Shell no soportada: $2"; return 1 ;;
+                esac
+                shift 2
+                ;;
+            --with-deps-linux)
+                INSTALL_DEPS_LINUX=true
+                shift
+                ;;
+            --with-deps-python)
+                INSTALL_DEPS_PYTHON=true
+                shift
+                ;;
+            --with-deps-node)
+                INSTALL_DEPS_NODE=true
+                shift
+                ;;
+            --with-deps-rust)
+                INSTALL_DEPS_RUST=true
+                shift
+                ;;
+            --with-deps-go)
+                INSTALL_DEPS_GO=true
+                shift
+                ;;
+            --with-deps)
+                INSTALL_DEPS_LINUX=true
+                INSTALL_DEPS_PYTHON=true
+                INSTALL_DEPS_NODE=true
+                INSTALL_DEPS_RUST=true
+                INSTALL_DEPS_GO=true
+                shift
+                ;;
+            --with-repos)
+                INSTALL_REPOS=true
+                shift
+                ;;
+            --with-backup)
+                INSTALL_BACKUP=true
+                shift
+                ;;
+            --validate)
+                INSTALL_VALIDATE=true
+                shift
+                ;;
+            --all)
+                INSTALL_ALL=true
+                INSTALL_DEPS_LINUX=true
+                INSTALL_DEPS_PYTHON=true
+                INSTALL_DEPS_NODE=true
+                INSTALL_DEPS_RUST=true
+                INSTALL_DEPS_GO=true
+                INSTALL_REPOS=true
+                INSTALL_BACKUP=true
+                INSTALL_VALIDATE=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
+                shift
+                ;;
+            --verbose|-v)
+                VERBOSE=true
+                shift
+                ;;
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            -*)
+                _lib_message -error "Flag desconocido: $1"
+                show_help
+                exit 1
+                ;;
+            *)
+                _lib_message -error "Argumento desconocido: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
 show_banner() {
     local banner_name="${1:-banner.txt}"
-    _lib_validate_required_param "$banner_name" "Uso: show_banner <nombre_ascii>" || return 1
-
-    local archivo_banner="$SCRIPT_DIR/source/console/$banner_name"
-    _lib_validate_file_with_message "$archivo_banner" "Error: No se encontró el archivo $banner_name" || return 1
-
-    echo -e "\e[1;34m"
-    cat "$archivo_banner"
-    echo -e "\e[0m"
-
-    sleep 2
+    local archivo_banner="${DRAWS_DIR}/${banner_name}"
+    
+    if [[ -f "$archivo_banner" ]]; then
+        echo -e "\e[1;34m"
+        cat "$archivo_banner"
+        echo -e "\e[0m"
+        sleep 2
+    fi
 }
 
 # ============================================================================
 # CONFIGURACIÓN XDG BASE DIRECTORY
 # ============================================================================
 
-# Validar que los directorios XDG existan o puedan crearse
 validate_xdg_directories() {
     local xdg_dirs=("$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME")
     for dir in "${xdg_dirs[@]}"; do
@@ -70,7 +179,6 @@ validate_xdg_directories() {
     done
 }
 
-# Validar y crear directorios XDG
 validate_xdg_directories || {
     message -error "Error crítico: No se pueden crear directorios XDG"
     exit 1
@@ -86,7 +194,7 @@ detect_shell() {
     case "$CURRENT_SHELL" in
         bash)   SHELL_DETECTED="bash"; _lib_message -success "Shell detectado: Bash";;
         zsh)    SHELL_DETECTED="zsh";  _lib_message -success "Shell detectado: Zsh";;
-        *)      SHELL_DETECTED="unknown"; _lib_message -warning "Shell desconocido: $CURRENT_SHELL";;
+        *)      SHELL_DETECTED="bash"; _lib_message -warning "Shell desconocido: $CURRENT_SHELL, usando bash";;
     esac
 }
 
@@ -123,95 +231,320 @@ system_detection() {
 }
 
 # ============================================================================
-# GESTIÓN DE DEPENDENCIAS
+# GESTIÓN DE DEPENDENCIAS - LINUX
 # ============================================================================
 
 parse_dependencies() {
     _lib_message -subtitle "LEYENDO CONFIGURACIÓN DE DEPENDENCIAS"
     sleep 2
     
-    # Verificar archivo de dependencias
     if [[ ! -f "$DEPS_FILE" ]]; then
         _lib_message -error "Archivo de dependencias no encontrado: $DEPS_FILE"
         return 1
     fi
     
-    _lib_message -info "Archivo de dependencias cargado: $DEPS_FILE"
-    _lib_message -warning "XDG Config: ${XDG_CONFIG_HOME:-$HOME/.config}"
-    _lib_message -warning "XDG Data:   ${XDG_DATA_HOME:-$HOME/.local/share}"
+    _lib_message -info "Archivo de dependencias: $DEPS_FILE"
 }
 
 check_linux_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE LINUX"
+    
     local deps=()
-    mapfile -t deps < <(tomlq -r '.linux.packages[].name' "$DEPS_FILE")
+    mapfile -t deps < <(tomlq -r '.linux.packages[].name' "$DEPS_FILE" 2>/dev/null)
     
     if [[ ${#deps[@]} -eq 0 ]]; then
-        _lib_message -warning "No se encontraron paquetes en $DEPS_FILE"
+        _lib_message -warning "No se encontraron paquetes Linux en $DEPS_FILE"
         return 0
     fi
 
     _lib_check_packages_array "$DISTRO" deps MISSING_PKGS
 }
 
-check_github_dependencies() {
-    _lib_message -subtitle "VERIFICANDO REPOSITORIOS DE GITHUB"
-    MISSING_REPS=()
-    local repos_base="${XDG_DATA_HOME:-$HOME/.local/share}/repositories"
-    
-    local repo_names=()
-    mapfile -t repo_names < <(tomlq -r '.repositories.repos[].name' "$DEPS_FILE")
-
-    for name in "${repo_names[@]}"; do
-        if [[ -d "$repos_base/$name/.git" ]]; then
-            _lib_message -success "$name -> disponible"
-        else
-            _lib_message -warning "$name -> no encontrado"
-            MISSING_REPS+=("$name")
-        fi
-    done
-}
-
 install_core_dependencies() {
     _lib_message -subtitle "INSTALANDO DEPENDENCIAS CORE"
-    local core_packages=("git" "curl" "wget" "jq" "yq")
+    local core_packages=("git" "curl" "wget" "jq")
     _lib_install_packages_array "$DISTRO" core_packages
 }
 
-check_dependencies() {
-    parse_dependencies || return 1
-    check_linux_dependencies
-    check_github_dependencies
-
-    if [[ ${#MISSING_PKGS[@]} -gt 0 ]] || [[ ${#MISSING_REPS[@]} -gt 0 ]]; then
-        return 1
-    fi
-
-    return 0
-}
-
 install_linux_dependencies() {
+    check_linux_dependencies
+    
     if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
-        _lib_message -success "No hay paquetes de Linux pendientes"
+        _lib_message -success "Todos los paquetes Linux ya están instalados"
         return 0
     fi
+    
     _lib_message -title "INSTALANDO PAQUETES DE LINUX"
     _lib_install_packages_array "$DISTRO" MISSING_PKGS
 }
 
+# ============================================================================
+# GESTIÓN DE DEPENDENCIAS - PYTHON
+# ============================================================================
+
+check_python_dependencies() {
+    _lib_message -subtitle "VERIFICANDO PAQUETES DE PYTHON"
+    
+    local python_pkgs=()
+    mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#python_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No se encontraron paquetes Python"
+        return 0
+    fi
+    
+    for pkg in "${python_pkgs[@]}"; do
+        if pip show "$pkg" &>/dev/null; then
+            _lib_message -success "$pkg -> instalado"
+        else
+            _lib_message -warning "$pkg -> no instalado"
+        fi
+    done
+}
+
+install_python_dependencies() {
+    _lib_message -title "INSTALANDO PAQUETES DE PYTHON"
+    
+    local python_pkgs=()
+    mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#python_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No hay paquetes Python para instalar"
+        return 0
+    fi
+    
+    if ! command -v pip &>/dev/null; then
+        _lib_message -error "pip no está instalado"
+        return 1
+    fi
+    
+    for pkg in "${python_pkgs[@]}"; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] pip install $pkg"
+        else
+            if pip show "$pkg" &>/dev/null; then
+                _lib_message -success "$pkg -> ya instalado"
+            else
+                _lib_message -info "Instalando: $pkg"
+                if pip install "$pkg" &>/dev/null; then
+                    _lib_message -success "Instalado: $pkg"
+                else
+                    _lib_message -error "Falló: $pkg"
+                fi
+            fi
+        fi
+    done
+}
+
+# ============================================================================
+# GESTIÓN DE DEPENDENCIAS - NODE
+# ============================================================================
+
+check_node_dependencies() {
+    _lib_message -subtitle "VERIFICANDO PAQUETES DE NODE"
+    
+    local node_pkgs=()
+    mapfile -t node_pkgs < <(tomlq -r '.node.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#node_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No se encontraron paquetes Node"
+        return 0
+    fi
+    
+    for pkg in "${node_pkgs[@]}"; do
+        if npm list -g "$pkg" &>/dev/null; then
+            _lib_message -success "$pkg -> instalado"
+        else
+            _lib_message -warning "$pkg -> no instalado"
+        fi
+    done
+}
+
+install_node_dependencies() {
+    _lib_message -title "INSTALANDO PAQUETES DE NODE"
+    
+    local node_pkgs=()
+    mapfile -t node_pkgs < <(tomlq -r '.node.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#node_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No hay paquetes Node para instalar"
+        return 0
+    fi
+    
+    if ! command -v npm &>/dev/null; then
+        _lib_message -error "npm no está instalado"
+        return 1
+    fi
+    
+    for pkg in "${node_pkgs[@]}"; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] npm install -g $pkg"
+        else
+            if npm list -g "$pkg" &>/dev/null; then
+                _lib_message -success "$pkg -> ya instalado"
+            else
+                _lib_message -info "Instalando: $pkg"
+                if npm install -g "$pkg" &>/dev/null; then
+                    _lib_message -success "Instalado: $pkg"
+                else
+                    _lib_message -error "Falló: $pkg"
+                fi
+            fi
+        fi
+    done
+}
+
+# ============================================================================
+# GESTIÓN DE DEPENDENCIAS - RUST
+# ============================================================================
+
+check_rust_dependencies() {
+    _lib_message -subtitle "VERIFICANDO PAQUETES DE RUST"
+    
+    local rust_pkgs=()
+    mapfile -t rust_pkgs < <(tomlq -r '.rust.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#rust_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No se encontraron paquetes Rust"
+        return 0
+    fi
+    
+    for pkg in "${rust_pkgs[@]}"; do
+        if cargo install --list 2>/dev/null | grep -q "^$pkg "; then
+            _lib_message -success "$pkg -> instalado"
+        else
+            _lib_message -warning "$pkg -> no instalado"
+        fi
+    done
+}
+
+install_rust_dependencies() {
+    _lib_message -title "INSTALANDO PAQUETES DE RUST"
+    
+    local rust_pkgs=()
+    mapfile -t rust_pkgs < <(tomlq -r '.rust.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#rust_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No hay paquetes Rust para instalar"
+        return 0
+    fi
+    
+    if ! command -v cargo &>/dev/null; then
+        _lib_message -error "cargo no está instalado"
+        return 1
+    fi
+    
+    for pkg in "${rust_pkgs[@]}"; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] cargo install $pkg"
+        else
+            if cargo install --list 2>/dev/null | grep -q "^$pkg "; then
+                _lib_message -success "$pkg -> ya instalado"
+            else
+                _lib_message -info "Instalando: $pkg"
+                if cargo install "$pkg" &>/dev/null; then
+                    _lib_message -success "Instalado: $pkg"
+                else
+                    _lib_message -error "Falló: $pkg"
+                fi
+            fi
+        fi
+    done
+}
+
+# ============================================================================
+# GESTIÓN DE DEPENDENCIAS - GO
+# ============================================================================
+
+check_go_dependencies() {
+    _lib_message -subtitle "VERIFICANDO PAQUETES DE GO"
+    
+    local go_pkgs=()
+    mapfile -t go_pkgs < <(tomlq -r '.go.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#go_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No se encontraron paquetes Go"
+        return 0
+    fi
+    
+    for pkg in "${go_pkgs[@]}"; do
+        if go list -m "$pkg" &>/dev/null; then
+            _lib_message -success "$pkg -> instalado"
+        else
+            _lib_message -warning "$pkg -> no instalado"
+        fi
+    done
+}
+
+install_go_dependencies() {
+    _lib_message -title "INSTALANDO PAQUETES DE GO"
+    
+    local go_pkgs=()
+    mapfile -t go_pkgs < <(tomlq -r '.go.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    
+    if [[ ${#go_pkgs[@]} -eq 0 ]]; then
+        _lib_message -warning "No hay paquetes Go para instalar"
+        return 0
+    fi
+    
+    if ! command -v go &>/dev/null; then
+        _lib_message -error "go no está instalado"
+        return 1
+    fi
+    
+    for pkg in "${go_pkgs[@]}"; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] go install $pkg"
+        else
+            if go list -m "$pkg" &>/dev/null; then
+                _lib_message -success "$pkg -> ya instalado"
+            else
+                _lib_message -info "Instalando: $pkg"
+                if go install "$pkg" &>/dev/null; then
+                    _lib_message -success "Instalado: $pkg"
+                else
+                    _lib_message -error "Falló: $pkg"
+                fi
+            fi
+        fi
+    done
+}
+
+# ============================================================================
+# REPOSITORIOS GITHUB
+# ============================================================================
+
+check_github_dependencies() {
+    _lib_message -subtitle "VERIFICANDO REPOSITORIOS DE GITHUB"
+    MISSING_REPOS=()
+    
+    local repo_names=()
+    mapfile -t repo_names < <(tomlq -r '.repositories.repos[].name' "$DEPS_FILE" 2>/dev/null)
+
+    for name in "${repo_names[@]}"; do
+        if [[ -d "${REPOS_BASE}/${name}/.git" ]]; then
+            _lib_message -success "$name -> disponible"
+        else
+            _lib_message -warning "$name -> no encontrado"
+            MISSING_REPOS+=("$name")
+        fi
+    done
+}
+
 install_github_dependencies() {
-    if [[ ${#MISSING_REPS[@]} -eq 0 ]]; then
-        _lib_message -success "No hay repositorios pendientes"
+    check_github_dependencies
+    
+    if [[ ${#MISSING_REPOS[@]} -eq 0 ]]; then
+        _lib_message -success "Todos los repositorios ya están instalados"
         return 0
     fi
 
     _lib_message -title "INSTALANDO REPOSITORIOS DE GITHUB"
-    local repos_base="${XDG_DATA_HOME:-$HOME/.local/share}/repositories"
-    _lib_ensure_dir "$repos_base" || return 1
+    _lib_ensure_dir "$REPOS_BASE" || return 1
 
-    for repo in "${MISSING_REPS[@]}"; do
+    for repo in "${MISSING_REPOS[@]}"; do
         local url
-        url=$(tomlq -r ".repositories.repos[] | select(.name == \"$repo\") | .url" "$DEPS_FILE")
+        url=$(tomlq -r ".repositories.repos[] | select(.name == \"$repo\") | .url" "$DEPS_FILE" 2>/dev/null)
 
         if [[ -z "$url" || "$url" == "null" ]]; then
             _lib_message -error "No se encontró URL para $repo"
@@ -219,25 +552,24 @@ install_github_dependencies() {
         fi
 
         _lib_message -info "Clonando $repo..."
-        if git clone "$url" "$repos_base/$repo" &>/dev/null; then
-            _lib_message -success "$repo instalado"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] git clone --depth 1 $url ${REPOS_BASE}/${repo}"
         else
-            _lib_message -error "Error instalando $repo"
+            if git clone --depth 1 "$url" "${REPOS_BASE}/${repo}" &>/dev/null; then
+                _lib_message -success "$repo instalado en ${REPOS_BASE}/${repo}"
+            else
+                _lib_message -error "Error instalando $repo"
+            fi
         fi
     done
 }
 
 # ============================================================================
-# CONFIGURACIÓN AUTOMÁTICA DE OH-MY-SHELLS
-# ============================================================================
-
-
-# ============================================================================
-# BACKUP
+# BACKUP DE CONFIGURACIONES
 # ============================================================================
 
 backup_existing_files() {
-    _lib_message -subtitle "CREANDO BACKUP DE CONFIGURACIONES ACTUALES"
+    _lib_message -title "CREANDO BACKUP DE CONFIGURACIONES"
     sleep 1
 
     local items_to_backup=(
@@ -274,13 +606,16 @@ backup_existing_files() {
         local rel_path="${item#"$HOME"/}"
         local dest_path="$backup_dir/$rel_path"
         _lib_ensure_dir "$(dirname "$dest_path")"
-        cp -r "$item" "$dest_path"
-        _lib_message -success "Backup: $rel_path"
-        backed_up=true
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] cp -r $item $dest_path"
+        else
+            cp -r "$item" "$dest_path"
+            _lib_message -success "Backup: $rel_path"
+            backed_up=true
+        fi
     done
     
-    # Crear archivo de metadata a partir del template
-    local template_file="$SCRIPT_DIR/source/templates/backup-info.txt"
+    local template_file="${SCRIPT_DIR}/src/templates/backupInfo.template"
     if [[ -f "$template_file" ]]; then
         local backup_created distro_name system_name host_name user_name
         backup_created=$(date '+%Y-%m-%d %H:%M:%S')
@@ -289,103 +624,206 @@ backup_existing_files() {
         host_name=$(hostname)
         user_name=$(whoami)
 
-        _lib_render_template "$template_file" "$backup_dir/backup-info.txt" \
-            "BACKUP_CREATED=$backup_created" \
-            "BACKUP_TIMESTAMP=$BACKUP_TIMESTAMP" \
-            "SYSTEM_NAME=$system_name" \
-            "DISTRO_NAME=$distro_name" \
-            "SHELL_NAME=$SHELL_DETECTED" \
-            "HOST_NAME=$host_name" \
-            "USER_NAME=$user_name"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            _lib_message -info "[DRY-RUN] _lib_render_template $template_file $backup_dir/backupInfo.template"
+        else
+            _lib_render_template "$template_file" "$backup_dir/backupInfo.template" \
+                "BACKUP_CREATED=$backup_created" \
+                "BACKUP_TIMESTAMP=$BACKUP_TIMESTAMP" \
+                "SYSTEM_NAME=$system_name" \
+                "DISTRO_NAME=$distro_name" \
+                "SHELL_NAME=$INSTALL_SHELL" \
+                "HOST_NAME=$host_name" \
+                "USER_NAME=$user_name"
+        fi
     else
-        _lib_message -warning "Template de backup-info no encontrado; se omite metadata"
+        _lib_message -warning "Template de backup no encontrado: $template_file"
     fi
     
     _lib_message -success "Backup guardado en: $backup_dir"
 }
 
 # ============================================================================
-# INSTALACIÓN DE ARCHIVOS
+# INSTALACIÓN DE ENLACES SIMBÓLICOS
 # ============================================================================
 
-install_config_files() {
-    _lib_message -title "INSTALANDO ARCHIVOS DE CONFIGURACIÓN"
+readonly DOTFILES_REPO="${HOME}/.dotfiles/shell-configs"
+
+install_symlinks() {
+    local target_shell="${1:-$INSTALL_SHELL}"
+    
+    _lib_message -title "INSTALANDO ENLACES SIMBÓLICOS PARA: $target_shell"
     sleep 1
 
-    # 1. Enlaces de configuración (source/config -> TARGET_CONFIG_DIR)
-    _lib_install_symlinks "$CONFIG_DIR" "$TARGET_CONFIG_DIR" "Enlaces de configuración"
+    local created=0
 
-    # 2. Enlaces de home (source/home -> $HOME)
-    _lib_install_symlinks "$HOMEFS_DIR" "$HOME" "Enlaces de archivos home"
+    _lib_message -subtitle "Archivos home"
 
-    # 3. Enlaces de shell específica (source/shells/{shell} -> $HOME)
-    if [[ "$SHELL_DETECTED" != "unknown" ]]; then
-        local shell_src="${SHELLS_DIR}/${SHELL_DETECTED}"
-        _lib_install_symlinks "$shell_src" "$HOME" "Enlaces de archivos para ${SHELL_DETECTED}"
+    for file in .profile .hushlogin; do
+        local src_file="${HOMEFS_DIR}/${file}"
+        local target="${HOME}/${file}"
+        if [[ -f "$src_file" ]]; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                _lib_message -info "[DRY-RUN] ln -sfn $src_file $target"
+            else
+                ln -sfn "$src_file" "$target" && {
+                    _lib_message -success "✓ $file"
+                    ((created++))
+                }
+            fi
+        fi
+    done
+
+    _lib_message -subtitle "Archivos para shell: $target_shell"
+
+    local shell_src="${SHELLS_DIR}/${target_shell}"
+    if [[ -d "$shell_src" ]]; then
+        for file in "$shell_src"/.* "$shell_src"/*; do
+            [[ -e "$file" ]] || continue
+            [[ -f "$file" ]] || continue
+            local filename
+            filename=$(basename "$file")
+            [[ "$filename" == "." || "$filename" == ".." ]] && continue
+            local target="${HOME}/${filename}"
+            if [[ "$DRY_RUN" == "true" ]]; then
+                _lib_message -info "[DRY-RUN] ln -sfn $file $target"
+            else
+                ln -sfn "$file" "$target" && {
+                    _lib_message -success "✓ $filename"
+                    ((created++))
+                }
+            fi
+        done
+    else
+        _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
 
-    # 4. Enlaces de scripts locales (source/local -> TARGET_LOCALS_DIR) recursivo
-    _lib_install_symlinks "$LOCALS_DIR" "$TARGET_LOCALS_DIR" "Enlaces de scripts locales" "true"
+    _lib_message -success "Total: $created enlaces creados"
+    return 0
+}
+
+uninstall_symlinks() {
+    _lib_message -title "DESINSTALANDO ENLACES SIMBÓLICOS"
+    sleep 1
+
+    local files=(".profile" ".hushlogin" ".bashrc" ".zshrc" ".bash_logout" ".p10k.zsh")
+    local removed=0
+
+    for file in "${files[@]}"; do
+        local target="${HOME}/${file}"
+        if [[ -L "$target" ]]; then
+            rm "$target" && {
+                _lib_message -success "✓ $file eliminado"
+                ((removed++))
+            }
+        fi
+    done
+
+    _lib_message -success "Total: $removed enlaces eliminados"
+    return 0
 }
 
 # ============================================================================
-# VALIDACIÓN POST-INSTALACIÓN
+# FUNCIONES DE GIT
 # ============================================================================
 
-validate_installation() {
-    message -title "VALIDACIÓN POST-INSTALACIÓN"
-    sleep 2
-    
-    local errors=0
-    
-    # Verificar archivos de configuración
-    message -subtitle "Verificando archivos de configuración..."
-    for file in aliases exports functions; do
-        if [[ -f "$TARGET_CONFIG_DIR/$file" ]]; then
-            message -success "✓ $file"
-        else
-            message -error "✗ $file no existe"
-            ((errors++))
-        fi
-    done
-    
-    # Verificar sintaxis de archivos shell
-    message -subtitle "Verificando sintaxis..."
-    for file in "$TARGET_CONFIG_DIR"/*; do
-        if [[ -f "$file" ]] && bash -n "$file" 2>/dev/null; then
-            message -success "✓ $(basename "$file") sintaxis válida"
-        else
-            message -error "✗ $(basename "$file") tiene errores de sintaxis"
-            ((errors++))
-        fi
-    done
-    
-    # Verificar sourcing con variables XDG
-    message -subtitle "Verificando sourcing con variables XDG..."
-    local test_cmd="source $TARGET_CONFIG_DIR/exports && source $TARGET_CONFIG_DIR/functions && source $TARGET_CONFIG_DIR/aliases"
-    
-    # Test con valores reales de variables XDG
-    if XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CACHE_HOME="$XDG_CACHE_HOME" bash -c "$test_cmd" 2>/dev/null; then
-        message -success "✓ Archivos pueden ser sourceados con variables XDG"
-    else
-        message -error "✗ Error al sourcear archivos con XDG"
-        ((errors++))
+update_submodule() {
+    _lib_message -title "ACTUALIZANDO SUBMÓDULO"
+
+    local dotfiles_dir="${HOME}/.dotfiles"
+    if [[ ! -d "$dotfiles_dir/.git" ]]; then
+        _lib_message -error "No se encontró ~/.dotfiles"
+        return 1
     fi
-    
-    # Validar variables clave en exports.sh
-    message -subtitle "Validando variables XDG en exports.sh..."
-    if XDG_CONFIG_HOME="$XDG_CONFIG_HOME" XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CACHE_HOME="$XDG_CACHE_HOME" bash -c "source $TARGET_CONFIG_DIR/exports && echo \"XDG_CONFIG_HOME: \$XDG_CONFIG_HOME\" && echo \"XDG_DATA_HOME: \$XDG_DATA_HOME\" && echo \"XDG_CACHE_HOME: \$XDG_CACHE_HOME\"" 2>/dev/null; then
-        message -success "✓ Variables XDG configuradas en exports.sh"
-    else
-        message -error "✗ Error en variables XDG de exports.sh"
-        ((errors++))
+
+    cd "$DOTFILES_REPO" || return 1
+    git submodule update --init --recursive 2>/dev/null || true
+    git pull 2>/dev/null || true
+
+    _lib_message -success "Submódulo actualizado"
+    return 0
+}
+
+push_changes() {
+    _lib_message -title "GUARDANDO CAMBIOS"
+
+    cd "$DOTFILES_REPO" || return 1
+
+    local changes
+    changes=$(git status --short 2>/dev/null)
+
+    if [[ -z "$changes" ]]; then
+        _lib_message -info "No hay cambios para guardar"
+        return 0
     fi
-    
-    return $errors
+
+    git add -A
+    git commit -m "Update: $(date '+%Y-%m-%d %H:%M%S')"
+    git push
+
+    _lib_message -success "Cambios guardados y enviados"
+    return 0
 }
 
 # ============================================================================
-# MENÚ DE RESUMEN
+# AYUDA
+# ============================================================================
+
+show_help() {
+    cat << 'EOF'
+USO: setup.sh [COMANDO] [OPCIONES]
+
+COMANDOS:
+    install     Instalar enlaces simbólicos y opcionalmente dependencias
+    uninstall   Eliminar enlaces simbólicos
+    update      Actualizar submódulo desde repositorio principal
+    push        Guardar y enviar cambios al repositorio
+    help        Mostrar esta ayuda
+
+OPCIONES DE SHELL:
+    --shell <bash|zsh>    Shell a configurar (default: bash)
+
+OPCIONES DE PAQUETES (instalar grupos específicos):
+    --with-deps-linux     Instalar paquetes Linux (apt/pacman/dnf)
+    --with-deps-python    Instalar paquetes Python (pip)
+    --with-deps-node      Instalar paquetes Node.js (npm)
+    --with-deps-rust      Instalar paquetes Rust (cargo)
+    --with-deps-go        Instalar paquetes Go (go install)
+    --with-deps           Instalar TODOS los paquetes (linux + python + node + rust + go)
+
+OPCIONES DE REPOSITORIOS:
+    --with-repos          Clonar repositorios GitHub (oh-my-zsh, oh-my-bash, powerlevel10k)
+
+OPCIONES DE INSTALACIÓN:
+    --with-backup         Crear backup antes de instalar
+    --validate            Ejecutar validación post-instalación
+    --dry-run             Simular sin hacer cambios reales
+    --verbose, -v         Salida detallada
+
+OPCIONES COMBINADAS:
+    --all                 Instalar todo (todos los deps + repos + validate)
+
+EJEMPLOS:
+    ./setup.sh install                           # Solo enlaces (bash)
+    ./setup.sh install --shell zsh                # Enlaces para zsh
+    ./setup.sh install --with-deps-linux          # Solo paquetes Linux
+    ./setup.sh install --with-deps-python         # Solo paquetes Python
+    ./setup.sh install --with-deps-python --with-deps-node  # Python + Node
+    ./setup.sh install --with-deps                # Todos los paquetes
+    ./setup.sh install --with-deps --with-repos   # Paquetes + repos
+    ./setup.sh install --all                      # Instalación completa
+    ./setup.sh install --dry-run --verbose       # Simular con detalles
+    ./setup.sh uninstall                          # Eliminar todos los enlaces
+
+SHELLS SOPORTADAS:
+    bash                                   Configuración de Bash
+    zsh                                    Configuración de Zsh
+
+EOF
+}
+
+# ============================================================================
+# RESUMEN
 # ============================================================================
 
 show_summary() {
@@ -394,26 +832,30 @@ show_summary() {
     _lib_message -subtitle "Sistema:"
     _lib_message -info "WSL2: $([ "$IS_WSL2" = true ] && echo "Sí" || echo "No")"
     _lib_message -info "Distribución: $DISTRO"
-    _lib_message -info "Shell: $SHELL_DETECTED"
+    _lib_message -info "Shell: $INSTALL_SHELL"
     echo ""
 
-    _lib_message -subtitle "Directorios:"
-    _lib_message -info "Configuraciones: $TARGET_CONFIG_DIR"
-    _lib_message -info "Scripts: $TARGET_LOCALS_DIR"
-    _lib_message -info "Backups: $TARGET_BACKUP_DIR/backup/$BACKUP_TIMESTAMP"
+    _lib_message -subtitle "Scripts:"
+    _lib_message -info "Scripts disponibles en: $SCRIPTS_DIR"
     echo ""
     
-    _lib_message -subtitle "Dependencias:"
-    if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
-        _lib_message -info "Todas las dependencias están instaladas"
-    else
-        _lib_message -info "Dependencias faltantes:"
-        _lib_message -warning "${MISSING_PKGS[*]}"
-    fi
+    _lib_message -subtitle "Dependencias a instalar:"
+    _lib_message -info "Linux:    $([ "$INSTALL_DEPS_LINUX" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Python:   $([ "$INSTALL_DEPS_PYTHON" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Node:     $([ "$INSTALL_DEPS_NODE" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Rust:     $([ "$INSTALL_DEPS_RUST" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Go:       $([ "$INSTALL_DEPS_GO" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Repos:    $([ "$INSTALL_REPOS" == "true" ] && echo "Sí" || echo "No")"
+    echo ""
+
+    _lib_message -subtitle "Opciones:"
+    _lib_message -info "Backup:   $([ "$INSTALL_BACKUP" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Validate: $([ "$INSTALL_VALIDATE" == "true" ] && echo "Sí" || echo "No")"
+    _lib_message -info "Dry-run:  $([ "$DRY_RUN" == "true" ] && echo "Sí" || echo "No")"
     echo ""
 
     _lib_message -subtitle "Para aplicar los cambios, reinicie su terminal o ejecute:"
-    _lib_message -info "source ~/.${SHELL_DETECTED}rc"
+    _lib_message -info "source ~/.${INSTALL_SHELL}rc"
     echo ""
 }
 
@@ -422,67 +864,90 @@ show_summary() {
 # ============================================================================
 
 main() {
-    # Limpiar pantalla al iniciar
-    clear
+    local command="${1:-install}"
+    shift 2>/dev/null || true
 
-    # Mostrar banner
-    show_banner
-    _lib_message -title "INICIANDO INSTALACIÓN DE SHELL CONFIGS..."; sleep 1;
-
-    # PASO 1: Ejecución de pasos principales
-    _lib_message -title "PASO 1: Detección del sistema"
-    system_detection
-
-    # PASO 2: Instalación de dependencias core
-    _lib_message -title "PASO 2: Instalación de paquetes CORE del sistema"
-    if _lib_get_package_manager_commands "$DISTRO" >/dev/null 2>&1; then
-        # Paquetes esenciales para el funcionamiento del script y utilidades comunes
-        local core_packages=(git curl wget jq yq vim cmatrix)
-        
-        _lib_message -subtitle "Paquetes CORE: ${core_packages[*]}"
-        if _lib_install_packages_array "$DISTRO" core_packages; then
-            _lib_message -success "Paquetes CORE instalados exitosamente"
-        else
-            _lib_message -warning "Algunos paquetes CORE no pudieron instalarse"
-        fi
-    else
-        _lib_message -warning "Gestor de paquetes no soportado para distro: $DISTRO"
-        return 1
-    fi
-    
-    # PASO 3: Verificación e instalación de dependencias del proyecto
-    _lib_message -title "PASO 3: Gestión de dependencias del proyecto"
-    if ! check_dependencies; then
-        _lib_message -info "Se detectaron dependencias faltantes en el proyecto"
-
-        if [[ ${#MISSING_PKGS[@]} -gt 0 ]]; then
-            _lib_message -subtitle "Instalando paquetes faltantes: ${#MISSING_PKGS[@]}"
-            # install_linux_dependencies || _lib_message -warning "Algunos paquetes fallaron"
-        fi
-
-        if [[ ${#MISSING_REPS[@]} -gt 0 ]]; then
-            _lib_message -subtitle "Instalando repositorios faltantes: ${#MISSING_REPS[@]}"
-            # install_github_dependencies || _lib_message -warning "Algunos repositorios fallaron"
-        fi
-    else
-        _lib_message -success "Todas las dependencias del proyecto están satisfechas"
-    fi
-
-
-    # PASO 4: Backup de configuraciones actuales
-    _lib_message -title "PASO 4: Backup de configuraciones actuales"
-    backup_existing_files
-
-    # # PASO 5: Instalación de archivos de configuración
-    # _lib_message -title "PASO 5: Instalación de archivos de configuración"
-    # install_config_files
-
-    
-
-    
-    show_summary
-    
+    case "$command" in
+        install)
+            parse_flags "$@"
+            
+            if [[ "$VERBOSE" == "true" ]]; then
+                _lib_message -info "Shell: $INSTALL_SHELL"
+                _lib_message -info "Deps Linux: $INSTALL_DEPS_LINUX"
+                _lib_message -info "Deps Python: $INSTALL_DEPS_PYTHON"
+                _lib_message -info "Deps Node: $INSTALL_DEPS_NODE"
+                _lib_message -info "Deps Rust: $INSTALL_DEPS_RUST"
+                _lib_message -info "Deps Go: $INSTALL_DEPS_GO"
+                _lib_message -info "Repos: $INSTALL_REPOS"
+            fi
+            
+            system_detection
+            
+            # Dependencias Linux
+            if [[ "$INSTALL_DEPS_LINUX" == "true" ]]; then
+                parse_dependencies
+                install_linux_dependencies
+            fi
+            
+            # Dependencias Python
+            if [[ "$INSTALL_DEPS_PYTHON" == "true" ]]; then
+                install_python_dependencies
+            fi
+            
+            # Dependencias Node
+            if [[ "$INSTALL_DEPS_NODE" == "true" ]]; then
+                install_node_dependencies
+            fi
+            
+            # Dependencias Rust
+            if [[ "$INSTALL_DEPS_RUST" == "true" ]]; then
+                install_rust_dependencies
+            fi
+            
+            # Dependencias Go
+            if [[ "$INSTALL_DEPS_GO" == "true" ]]; then
+                install_go_dependencies
+            fi
+            
+            # Repositorios
+            if [[ "$INSTALL_REPOS" == "true" ]]; then
+                parse_dependencies
+                install_github_dependencies
+            fi
+            
+            # Backup
+            if [[ "$INSTALL_BACKUP" == "true" ]]; then
+                backup_existing_files
+            fi
+            
+            # Enlaces simbólicos
+            install_symlinks "$INSTALL_SHELL"
+            
+            if [[ "$INSTALL_VALIDATE" == "true" ]]; then
+                _lib_message -info "Validación habilitada (no implementada)"
+            fi
+            
+            show_summary
+            _lib_message -success "Instalación completada para shell: $INSTALL_SHELL"
+            ;;
+        uninstall)
+            uninstall_symlinks
+            ;;
+        update)
+            update_submodule
+            ;;
+        push)
+            push_changes
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            _lib_message -error "Comando desconocido: $command"
+            show_help
+            exit 1
+            ;;
+    esac
 }
 
-# Ejecutar main
 main "$@"
