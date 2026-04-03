@@ -169,14 +169,28 @@ function fetch() {
         return 1
     fi
 
-    local cmd=$(_lib_find_first_available_command fastfetch neofetch fetching zfetch)
+    # 1. Intentar con comandos estándar
+    local cmd=$(_lib_find_first_available_command fastfetch neofetch)
+    
     if [[ -n "$cmd" ]]; then
         "$cmd" "$@"
         return 0
-    else
-        _lib_message -error "No se encontró ningún comando de 'fetch'. Instala 'fastfetch' o 'neofetch'."
-        return 1
     fi
+
+    # 2. Intentar con fetchs caseros en src/bin/fetchinfo/
+    local custom_fetch_dir="${DOTFILES_DIR}/src/bin/fetchinfo"
+    if [[ -d "$custom_fetch_dir" ]]; then
+        # Intentar en orden de preferencia
+        for f in "fetching.sh" "zfetch.sh" "sysfetch.sh"; do
+            if [[ -f "${custom_fetch_dir}/$f" ]]; then
+                bash "${custom_fetch_dir}/$f" "$@"
+                return 0
+            fi
+        done
+    fi
+
+    _lib_message -error "No se encontró ningún comando de 'fetch'. Instala 'fastfetch' o 'neofetch'."
+    return 1
 }
 
 
