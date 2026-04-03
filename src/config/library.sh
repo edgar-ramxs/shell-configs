@@ -323,14 +323,20 @@ _lib_cleanup_temp_files() {
 _lib_find_first_available_command() {
     local cmd type_out
     for cmd in "$@"; do
-        # command -v is used to check if the command exists as an executable
-        # then we check that it is not an alias
+        # Check if the command exists as an executable or builtin
         if command -v "$cmd" &>/dev/null; then
-            type_out=$(type -t "$cmd")
-            if [[ "$type_out" != "alias" ]]; then
-                command -v "$cmd"
-                return 0
+            # Portable check for alias
+            if [[ -n "$BASH_VERSION" ]]; then
+                type_out=$(type -t "$cmd" 2>/dev/null)
+                if [[ "$type_out" == "alias" ]]; then continue; fi
+            elif [[ -n "$ZSH_VERSION" ]]; then
+                type_out=$(type -w "$cmd" 2>/dev/null | cut -d: -f2 | xargs)
+                if [[ "$type_out" == "alias" ]]; then continue; fi
             fi
+            
+            # Return the path or name if not an alias
+            command -v "$cmd"
+            return 0
         fi
     done
     return 1

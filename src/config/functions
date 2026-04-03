@@ -5,8 +5,10 @@
 #    ██║     ╚██████╔╝██║ ╚████║╚██████╗   ██║   ██║╚██████╔╝██║ ╚████║███████║
 #    ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝
 
-# Obtener la ruta del directorio que contiene este archivo
-source "$(dirname "${BASH_SOURCE[0]}")/library.sh"
+# Obtener la ruta del directorio que contiene este archivo (Bash/Zsh compatible)
+_FUNCTIONS_DIR_VAL="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
+[ -f "$_FUNCTIONS_DIR_VAL/library.sh" ] && source "$_FUNCTIONS_DIR_VAL/library.sh"
+unset _FUNCTIONS_DIR_VAL
 
 
 function cdl (){ 
@@ -158,12 +160,21 @@ function cudir() {
 
 
 function fetch() {
+    # Check if the library helper is available
+    if ! declare -f _lib_find_first_available_command >/dev/null; then
+        # Fallback to standard neofetch if available
+        if command -v neofetch &>/dev/null; then neofetch "$@"; return 0; fi
+        if command -v fastfetch &>/dev/null; then fastfetch "$@"; return 0; fi
+        _lib_message -error "La librería compartida no se cargó correctamente"
+        return 1
+    fi
+
     local cmd=$(_lib_find_first_available_command fastfetch neofetch fetching zfetch)
     if [[ -n "$cmd" ]]; then
         "$cmd" "$@"
         return 0
     else
-        _lib_message -error "No se encontró ningún comando de 'fetch'"
+        _lib_message -error "No se encontró ningún comando de 'fetch'. Instala 'fastfetch' o 'neofetch'."
         return 1
     fi
 }
