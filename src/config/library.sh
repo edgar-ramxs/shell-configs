@@ -777,6 +777,63 @@ _lib_get_package_manager_commands() {
 }
 
 # ============================================================================
+# FUNCIÓN: _lib_parse_toml_packages
+# ============================================================================
+# Parsea nombres de paquetes de un archivo TOML (basado en expresiones regulares)
+#
+# Argumentos:
+#   $1: Sección (linux, python, rust, node, go)
+#   $2: Archivo TOML
+#
+# Retorno:
+#   Lista de nombres de paquetes
+#
+# Ejemplo:
+#   packages=$(_lib_parse_toml_packages "linux" "dependencies.toml")
+#
+_lib_parse_toml_packages() {
+    local section="$1"
+    local file="$2"
+    
+    [[ ! -f "$file" ]] && return 1
+    
+    # Extraer la sección solicitada y parsear los nombres
+    # Busca el bloque de la sección y extrae los campos 'name = "..."'
+    sed -n "/^\[$section\]/,/^\[/p" "$file" | \
+        grep "name =" | \
+        sed -E 's/.*name = "([^"]+)".*/\1/'
+}
+
+# ============================================================================
+# FUNCIÓN: _lib_parse_toml_field
+# ============================================================================
+# Busca un campo específico para un paquete/repo en una sección TOML
+#
+# Argumentos:
+#   $1: Sección (linux, python, rust, node, go, repositories)
+#   $2: Nombre del elemento (name)
+#   $3: Campo a extraer (url, description, etc.)
+#   $4: Archivo TOML
+#
+# Retorno:
+#   Valor del campo
+#
+_lib_parse_toml_field() {
+    local section="$1"
+    local name="$2"
+    local field="$3"
+    local file="$4"
+    
+    [[ ! -f "$file" ]] && return 1
+    
+    # Busca la línea del elemento dentro de la sección y extrae el campo solicitado
+    sed -n "/^\[$section\]/,/^\[/p" "$file" | \
+        grep "name = \"$name\"" | \
+        grep -o "$field = \"[^\"]*\"" | \
+        sed -E "s/.*$field = \"([^\"]+)\".*/\1/"
+}
+
+# ============================================================================
 # FUNCIÓN: _lib_check_packages_array
 # ============================================================================
 # Verifica disponibilidad de un array de paquetes

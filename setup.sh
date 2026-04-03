@@ -250,7 +250,8 @@ check_linux_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE LINUX"
     
     local deps=()
-    mapfile -t deps < <(tomlq -r '.linux.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    # mapfile -t deps < <(tomlq -r '.linux.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t deps < <(_lib_parse_toml_packages "linux" "$DEPS_FILE")
     
     if [[ ${#deps[@]} -eq 0 ]]; then
         _lib_message -warning "No se encontraron paquetes Linux en $DEPS_FILE"
@@ -286,7 +287,8 @@ check_python_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE PYTHON"
     
     local python_pkgs=()
-    mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    # mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t python_pkgs < <(_lib_parse_toml_packages "python" "$DEPS_FILE")
     
     if [[ ${#python_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No se encontraron paquetes Python"
@@ -306,7 +308,8 @@ install_python_dependencies() {
     _lib_message -title "INSTALANDO PAQUETES DE PYTHON"
     
     local python_pkgs=()
-    mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    # mapfile -t python_pkgs < <(tomlq -r '.python.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t python_pkgs < <(_lib_parse_toml_packages "python" "$DEPS_FILE")
     
     if [[ ${#python_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No hay paquetes Python para instalar"
@@ -317,19 +320,26 @@ install_python_dependencies() {
         _lib_message -error "pip no está instalado"
         return 1
     fi
+
+    # Determinar si necesitamos --break-system-packages
+    # (Debian 12+, Ubuntu 23+, Fedora 38+, Arch etc)
+    local pip_flags=()
+    if pip install --help 2>/dev/null | grep -q "break-system-packages"; then
+        pip_flags+=("--break-system-packages")
+    fi
     
     for pkg in "${python_pkgs[@]}"; do
         if [[ "$DRY_RUN" == "true" ]]; then
-            _lib_message -info "[DRY-RUN] pip install $pkg"
+            _lib_message -info "[DRY-RUN] pip install ${pip_flags[*]} $pkg"
         else
             if pip show "$pkg" &>/dev/null; then
                 _lib_message -success "$pkg -> ya instalado"
             else
                 _lib_message -info "Instalando: $pkg"
-                if pip install "$pkg" &>/dev/null; then
+                if pip install "${pip_flags[@]}" "$pkg" &>/dev/null; then
                     _lib_message -success "Instalado: $pkg"
                 else
-                    _lib_message -error "Falló: $pkg"
+                    _lib_message -error "Falló: $pkg (¿Necesita pipx o venv?)"
                 fi
             fi
         fi
@@ -344,7 +354,7 @@ check_node_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE NODE"
     
     local node_pkgs=()
-    mapfile -t node_pkgs < <(tomlq -r '.node.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t node_pkgs < <(_lib_parse_toml_packages "node" "$DEPS_FILE")
     
     if [[ ${#node_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No se encontraron paquetes Node"
@@ -364,7 +374,7 @@ install_node_dependencies() {
     _lib_message -title "INSTALANDO PAQUETES DE NODE"
     
     local node_pkgs=()
-    mapfile -t node_pkgs < <(tomlq -r '.node.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t node_pkgs < <(_lib_parse_toml_packages "node" "$DEPS_FILE")
     
     if [[ ${#node_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No hay paquetes Node para instalar"
@@ -402,7 +412,7 @@ check_rust_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE RUST"
     
     local rust_pkgs=()
-    mapfile -t rust_pkgs < <(tomlq -r '.rust.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t rust_pkgs < <(_lib_parse_toml_packages "rust" "$DEPS_FILE")
     
     if [[ ${#rust_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No se encontraron paquetes Rust"
@@ -422,7 +432,7 @@ install_rust_dependencies() {
     _lib_message -title "INSTALANDO PAQUETES DE RUST"
     
     local rust_pkgs=()
-    mapfile -t rust_pkgs < <(tomlq -r '.rust.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t rust_pkgs < <(_lib_parse_toml_packages "rust" "$DEPS_FILE")
     
     if [[ ${#rust_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No hay paquetes Rust para instalar"
@@ -460,7 +470,7 @@ check_go_dependencies() {
     _lib_message -subtitle "VERIFICANDO PAQUETES DE GO"
     
     local go_pkgs=()
-    mapfile -t go_pkgs < <(tomlq -r '.go.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t go_pkgs < <(_lib_parse_toml_packages "go" "$DEPS_FILE")
     
     if [[ ${#go_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No se encontraron paquetes Go"
@@ -480,7 +490,7 @@ install_go_dependencies() {
     _lib_message -title "INSTALANDO PAQUETES DE GO"
     
     local go_pkgs=()
-    mapfile -t go_pkgs < <(tomlq -r '.go.packages[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t go_pkgs < <(_lib_parse_toml_packages "go" "$DEPS_FILE")
     
     if [[ ${#go_pkgs[@]} -eq 0 ]]; then
         _lib_message -warning "No hay paquetes Go para instalar"
@@ -519,7 +529,7 @@ check_github_dependencies() {
     MISSING_REPOS=()
     
     local repo_names=()
-    mapfile -t repo_names < <(tomlq -r '.repositories.repos[].name' "$DEPS_FILE" 2>/dev/null)
+    mapfile -t repo_names < <(_lib_parse_toml_packages "repositories" "$DEPS_FILE")
 
     for name in "${repo_names[@]}"; do
         if [[ -d "${REPOS_BASE}/${name}/.git" ]]; then
@@ -544,7 +554,7 @@ install_github_dependencies() {
 
     for repo in "${MISSING_REPOS[@]}"; do
         local url
-        url=$(tomlq -r ".repositories.repos[] | select(.name == \"$repo\") | .url" "$DEPS_FILE" 2>/dev/null)
+        url=$(_lib_parse_toml_field "repositories" "$repo" "url" "$DEPS_FILE")
 
         if [[ -z "$url" || "$url" == "null" ]]; then
             _lib_message -error "No se encontró URL para $repo"
