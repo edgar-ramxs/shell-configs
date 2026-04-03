@@ -883,6 +883,11 @@ main() {
             
             system_detection
             
+            # Usar shell detectada si no se especificó explícitamente
+            if [[ "$INSTALL_SHELL" == "bash" && "$SHELL_DETECTED" != "bash" ]]; then
+                INSTALL_SHELL="$SHELL_DETECTED"
+            fi
+            
             # Dependencias Linux
             if [[ "$INSTALL_DEPS_LINUX" == "true" ]]; then
                 parse_dependencies
