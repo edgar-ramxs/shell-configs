@@ -681,9 +681,7 @@ install_symlinks() {
         _lib_message -info "shell_src: $shell_src"
     fi
     if [[ -d "$shell_src" ]]; then
-        shopt -s nullglob dotglob
-        for file in "$shell_src"/*; do
-            [[ -e "$file" ]] || continue
+        while IFS= read -r -d '' file; do
             [[ -f "$file" ]] || continue
             local filename
             filename=$(basename "$file")
@@ -697,8 +695,7 @@ install_symlinks() {
                     ((created++))
                 }
             fi
-        done
-        shopt -u nullglob dotglob
+        done < <(find "$shell_src" -maxdepth 1 -type f -print0)
     else
         _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
