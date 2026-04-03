@@ -321,11 +321,16 @@ _lib_cleanup_temp_files() {
 #   echo "Using editor: $editor"
 
 _lib_find_first_available_command() {
-    local cmd
+    local cmd type_out
     for cmd in "$@"; do
-        if _lib_check_command_exists "$cmd"; then
-            command -v "$cmd"
-            return 0
+        # command -v is used to check if the command exists as an executable
+        # then we check that it is not an alias
+        if command -v "$cmd" &>/dev/null; then
+            type_out=$(type -t "$cmd")
+            if [[ "$type_out" != "alias" ]]; then
+                command -v "$cmd"
+                return 0
+            fi
         fi
     done
     return 1
@@ -592,7 +597,7 @@ _lib_is_command_available() {
     if [[ -f "$cache_file" ]]; then
         local cache_age=$(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || echo 0)))
         if [[ $cache_age -lt 3600 ]]; then
-            return $(cat "$cache_file")
+            return $(command cat "$cache_file")
         fi
     fi
     

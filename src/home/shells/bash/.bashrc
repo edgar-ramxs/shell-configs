@@ -8,9 +8,9 @@
 [[ $- != *i* ]] && return
 
 DOTFILES_DIR="${HOME}/.dotfiles/shell-configs"
-[ -f "$DOTFILES_DIR/src/config/aliases" ] && source "$DOTFILES_DIR/src/config/aliases"
-[ -f "$DOTFILES_DIR/src/config/exports" ] && source "$DOTFILES_DIR/src/config/exports"
 [ -f "$DOTFILES_DIR/src/config/functions" ] && source "$DOTFILES_DIR/src/config/functions"
+[ -f "$DOTFILES_DIR/src/config/exports" ] && source "$DOTFILES_DIR/src/config/exports"
+[ -f "$DOTFILES_DIR/src/config/aliases" ] && source "$DOTFILES_DIR/src/config/aliases"
 
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 

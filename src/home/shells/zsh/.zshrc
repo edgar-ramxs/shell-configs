@@ -11,8 +11,8 @@ if [[ -r "$HOME/.cache/shells-configs/p10k-instant-prompt-${(%):-%n}.zsh" ]]; th
   source "$HOME/.cache/shells-configs/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-[ -f "$DOTFILES_DIR/src/config/exports" ] && source "$DOTFILES_DIR/src/config/exports"
 [ -f "$DOTFILES_DIR/src/config/functions" ] && source "$DOTFILES_DIR/src/config/functions"
+[ -f "$DOTFILES_DIR/src/config/exports" ] && source "$DOTFILES_DIR/src/config/exports"
 [ -f "$DOTFILES_DIR/src/config/aliases" ] && source "$DOTFILES_DIR/src/config/aliases"
 
 export HISTFILE="$HOME/.cache/shells-configs/zsh_history"

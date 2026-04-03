@@ -35,13 +35,14 @@ function calc() {
 
 
 function search-cat() {
-    local cmd=$(_lib_find_first_available_command bat batcat cat)
+    local cmd=$(_lib_find_first_available_command bat batcat)
     if [[ -n "$cmd" ]]; then
         "$cmd" "$@"
         return 0
     else
-        _lib_message -error "No se encontró ningún comando 'cat' o 'bat'"
-        return 1
+        # Fallback to standard cat, ignoring any alias
+        command cat "$@"
+        return 0
     fi
 }
 
@@ -237,7 +238,7 @@ function fzf-lovely(){
                       highlight -O ansi -l {} ||
                       coderay {} ||
                       rougify {} ||
-                      cat {}) 2> /dev/null | head -500'
+                      command cat {}) 2> /dev/null | head -500'
     
     if [[ "$1" = "h" ]]; then
         fzf -m --reverse --preview-window down:20 --preview "$preview_cmd"
@@ -277,7 +278,7 @@ function extract-ports() {
 	echo -e "\t[*] Open ports: $ports\n"  >> "$temp_file"
 	echo -e "\n[+] Ports copied to clipboard\n"  >> "$temp_file"
     echo $ports | tr -d '\n' | xclip -sel clip
-	cat "$temp_file"; rm "$temp_file"
+	command cat "$temp_file"; rm "$temp_file"
 
     _lib_message -success "Análisis completado"
     return 0
@@ -331,7 +332,7 @@ function pray-for-me() {
 
 function cheat() {
     local search=$1
-	curl -s "cheat.sh/$search" | cat
+	curl -s "cheat.sh/$search" | command cat
 }
 
 
