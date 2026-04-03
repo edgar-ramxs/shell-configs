@@ -798,13 +798,17 @@ _lib_parse_toml_packages() {
     
     [[ ! -f "$file" ]] && return 1
     
-    # Extraer la sección solicitada y parsear los nombres usando awk
+    # Extraer la sección solicitada y parsear los nombres usando awk (compatible con mawk/gawk)
     awk -v sect="[$section]" '
         $0 == sect { in_sect=1; next }
         /^\[/ && in_sect { in_sect=0 }
         in_sect && /name =/ {
-            match($0, /name = "([^"]+)"/, arr)
-            if (arr[1]) print arr[1]
+            if (match($0, /name = "[^"]+"/)) {
+                # Extraer el valor entre las comillas
+                # RSTART + 8 (longitud de "name = \"")
+                # RLENGTH - 9 (longitud total menos "name = \"" y la comilla final)
+                print substr($0, RSTART + 8, RLENGTH - 9)
+            }
         }
     ' "$file"
 }
@@ -831,13 +835,17 @@ _lib_parse_toml_field() {
     
     [[ ! -f "$file" ]] && return 1
     
-    # Busca la línea del elemento dentro de la sección y extrae el campo solicitado usando awk
+    # Busca la línea del elemento dentro de la sección y extrae el campo solicitado usando awk (portable)
     awk -v sect="[$section]" -v target="name = \"$name\"" -v fld="$field =" '
         $0 == sect { in_sect=1; next }
         /^\[/ && in_sect { in_sect=0 }
         in_sect && $0 ~ target {
-            match($0, fld " \"([^\"]+)\"", arr)
-            if (arr[1]) print arr[1]
+            regex = fld " \"[^\"]+\""
+            if (match($0, regex)) {
+                # Extraer valor dinámicamente según la longitud del campo
+                offset = length(fld) + 2
+                print substr($0, RSTART + offset, RLENGTH - offset - 1)
+            }
         }
     ' "$file"
 }
