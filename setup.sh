@@ -681,7 +681,7 @@ install_symlinks() {
         _lib_message -info "shell_src: $shell_src"
     fi
     if [[ -d "$shell_src" ]]; then
-        shopt -s nullglob
+        shopt -s nullglob dotglob
         for file in "$shell_src"/*; do
             [[ -e "$file" ]] || continue
             [[ -f "$file" ]] || continue
@@ -698,7 +698,7 @@ install_symlinks() {
                 }
             fi
         done
-        shopt -u nullglob
+        shopt -u nullglob dotglob
     else
         _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
