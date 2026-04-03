@@ -680,7 +680,7 @@ install_symlinks() {
             else
                 if ln -sfn "$src_file" "$target"; then
                     _lib_message -success "✓ $filename"
-                    ((created++))
+                    ((created += 1))
                 else
                     _lib_message -error "✗ Error al vincular $filename"
                 fi
@@ -712,7 +712,7 @@ install_symlinks() {
             else
                 if ln -sfn "$src_file" "$target"; then
                     _lib_message -success "✓ $filename"
-                    ((created++))
+                    ((created += 1))
                 else
                     _lib_message -error "✗ Error al vincular $filename"
                 fi
@@ -738,7 +738,7 @@ uninstall_symlinks() {
         if [[ -L "$target" ]]; then
             rm "$target" && {
                 _lib_message -success "✓ $file eliminado"
-                ((removed++))
+                ((removed += 1))
             }
         fi
     done
