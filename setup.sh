@@ -167,7 +167,7 @@ show_banner() {
 # ============================================================================
 
 validate_xdg_directories() {
-    local xdg_dirs=("$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME")
+    local xdg_dirs=("${XDG_CONFIG_HOME:-$HOME/.config}" "${XDG_DATA_HOME:-$HOME/.local/share}" "${XDG_CACHE_HOME:-$HOME/.cache}")
     for dir in "${xdg_dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
             mkdir -p "$dir" || {
