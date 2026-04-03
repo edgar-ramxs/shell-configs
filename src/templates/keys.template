@@ -1,0 +1,146 @@
+# ============================================================================
+# CONFIGURACIÓN DE CLAVES API
+# ============================================================================
+# Copia este archivo a: src/config/keys
+# cp src/templates/keys.template src/config/keys
+# Edita las variables con tus claves reales
+# Este archivo está ignorado por .gitignore
+# ============================================================================
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AI PROVIDERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+export ANTHROPIC_API_KEY=""              # Anthropic (Claude)
+export OPENAI_API_KEY=""                 # OpenAI (GPT)
+export GOOGLE_API_KEY=""                  # Google AI (Gemini)
+export GROQ_API_KEY=""                    # Groq
+export MISTRAL_API_KEY=""                 # Mistral AI
+export OPENROUTER_API_KEY=""              # OpenRouter (proxy multi-modelo)
+export REPLICATE_API_KEY=""               # Replicate
+export COHERE_API_KEY=""                 # Cohere
+export HUGGINGFACE_API_KEY=""             # Hugging Face
+export TOGETHER_API_KEY=""                # Together AI
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CLOUD PROVIDERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+export AWS_ACCESS_KEY_ID=""              # AWS
+export AWS_SECRET_ACCESS_KEY=""
+export AWS_REGION="us-east-1"
+export AZURE_OPENAI_API_KEY=""            # Azure OpenAI
+export AZURE_OPENAI_ENDPOINT=""
+export AZURE_OPENAI_API_VERSION="2024-02-01"
+export GOOGLE_CLOUD_PROJECT=""           # GCP
+export GOOGLE_APPLICATION_CREDENTIALS="" # Path to service account JSON
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VERSION CONTROL
+# ═══════════════════════════════════════════════════════════════════════════
+
+export GITHUB_TOKEN=""                   # GitHub API Token
+export GITHUB_API_KEY=""                 # GitHub API Key (alternative)
+export GITLAB_TOKEN=""                   # GitLab API Token
+export GITLAB_API_KEY=""                 # GitLab API Key
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CONTAINER REGISTRIES
+# ═══════════════════════════════════════════════════════════════════════════
+
+export DOCKERHUB_USERNAME=""             # Docker Hub
+export DOCKERHUB_TOKEN=""                # Docker Hub Token
+export GHCR_TOKEN=""                     # GitHub Container Registry
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DEVELOPMENT TOOLS
+# ═══════════════════════════════════════════════════════════════════════════
+
+export STRIPE_API_KEY=""                  # Stripe (pagos)
+export STRIPE_SECRET_KEY=""
+export TWILIO_ACCOUNT_SID=""              # Twilio (SMS)
+export TWILIO_AUTH_TOKEN=""
+export SENDGRID_API_KEY=""                # SendGrid (email)
+export DATADOG_API_KEY=""                 # Datadog (monitoring)
+export NEWRELIC_API_KEY=""                # New Relic (monitoring)
+export SENTRY_DSN=""                      # Sentry (error tracking)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# APIS PÚBLICAS
+# ═══════════════════════════════════════════════════════════════════════════
+
+export OPENWEATHER_API_KEY=""              # OpenWeatherMap
+export WEATHERAPI_KEY=""                   # WeatherAPI.com
+export NEWSAPI_KEY=""                      # NewsAPI.org
+export IPINFO_TOKEN=""                     # IPInfo (geolocation)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SOCIAL & MEDIA
+# ═══════════════════════════════════════════════════════════════════════════
+
+export SPOTIFY_CLIENT_ID=""                # Spotify
+export SPOTIFY_CLIENT_SECRET=""
+export DISCORD_BOT_TOKEN=""                # Discord Bot
+export DISCORD_CLIENT_ID=""
+export DISCORD_CLIENT_SECRET=""
+export TWITTER_API_KEY=""                  # Twitter/X API
+export TWITTER_API_SECRET=""
+export TWITTER_BEARER_TOKEN=""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DATABASES & BACKEND
+# ═══════════════════════════════════════════════════════════════════════════
+
+export MONGODB_URI=""                      # MongoDB Connection String
+export MONGODB_ATLAS_URI=""                # MongoDB Atlas
+export POSTGRES_CONNECTION_STRING=""       # PostgreSQL
+export POSTGRES_URL=""
+export REDIS_URL=""                        # Redis
+export SUPABASE_URL=""                     # Supabase
+export SUPABASE_ANON_KEY=""
+export SUPABASE_SERVICE_KEY=""
+export NEON_PROJECT_ID=""                  # Neon (PostgreSQL)
+export NEON_CONNECTION_STRING=""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DEPLOYMENT & DEVOPS
+# ═══════════════════════════════════════════════════════════════════════════
+
+export HEROKU_API_KEY=""                   # Heroku
+export RENDER_API_KEY=""                   # Render
+export VERCEL_API_TOKEN=""                 # Vercel
+export NETLIFY_TOKEN=""                    # Netlify
+export DIGITALOCEAN_TOKEN=""               # DigitalOcean
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SEARCH & SCRAPING
+# ═══════════════════════════════════════════════════════════════════════════
+
+export EXA_API_KEY=""                      # Exa AI (web search)
+export SERPAPI_KEY=""                      # SerpApi (Google search)
+export SCRAPINGBEE_API_KEY=""              # ScrapingBee
+export SCALE_SERP_API_KEY=""               # Scale SERP
+
+# ═══════════════════════════════════════════════════════════════════════════
+# COMMUNICATION
+# ═══════════════════════════════════════════════════════════════════════════
+
+export SLACK_BOT_TOKEN=""                  # Slack Bot
+export SLACK_USER_TOKEN=""
+export SLACK_SIGNING_SECRET=""
+export TELEGRAM_BOT_TOKEN=""               # Telegram Bot
+export TELEGRAM_API_ID=""                  # Telegram API ID
+export TELEGRAM_API_HASH=""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OTHER SERVICES
+# ═══════════════════════════════════════════════════════════════════════════
+
+export NOTION_API_KEY=""                   # Notion
+export NOTION_DATABASE_ID=""
+export LINEAR_API_KEY=""                   # Linear (project management)
+export LINEAR_TEAM_ID=""
+export OPENROUTER_API_KEY=""               # OpenRouter (already listed above, duplicate check)
+export CLIENT_IP_ENCRYPTION_KEY=""

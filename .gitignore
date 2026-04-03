@@ -1,2 +1,6 @@
+# Directories
 .vscode/
 .dev/
+
+# Files
+src/config/keys
