@@ -654,23 +654,25 @@ install_symlinks() {
     [[ -z "$target_shell" ]] && target_shell="bash"
     
     _lib_message -title "INSTALANDO ENLACES SIMBÓLICOS PARA: $target_shell"
-    sleep 1
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        _lib_message -info "HOMEFS_DIR: $HOMEFS_DIR"
+        _lib_message -info "SHELLS_DIR: $SHELLS_DIR"
+        _lib_message -info "target_shell: $target_shell"
+    fi
 
     local created=0
 
     _lib_message -subtitle "Archivos home generales"
     if [[ -d "$HOMEFS_DIR" ]]; then
-        shopt -s dotglob nullglob
-        for src_file in "$HOMEFS_DIR"/*; do
-            [[ -f "$src_file" ]] || continue
+        # Usar find para evitar problemas con globs y dotglob
+        while IFS= read -r -d '' src_file; do
             local filename
             filename=$(basename "$src_file")
-            # Omitir archivos que no queremos en el home directamente si los hay
-            [[ "$filename" == "." || "$filename" == ".." ]] && continue
-            
             local target="${HOME}/${filename}"
+            
             if [[ "$VERBOSE" == "true" ]]; then
-                _lib_message -info "Link: $filename -> $target"
+                _lib_message -info "Procesando home file: $filename"
             fi
 
             if [[ "$DRY_RUN" == "true" ]]; then
@@ -683,8 +685,7 @@ install_symlinks() {
                     _lib_message -error "✗ Error al vincular $filename"
                 fi
             fi
-        done
-        shopt -u dotglob nullglob
+        done < <(find "$HOMEFS_DIR" -maxdepth 1 -type f -print0)
     else
         _lib_message -warning "Directorio home base no encontrado: $HOMEFS_DIR"
     fi
@@ -692,21 +693,18 @@ install_symlinks() {
     _lib_message -subtitle "Archivos específicos de shell: $target_shell"
     local shell_src="${SHELLS_DIR}/${target_shell}"
     
-    if [[ "$VERBOSE" == "true" ]]; then
-        _lib_message -info "Buscando en: $shell_src"
-    fi
-
     if [[ -d "$shell_src" ]]; then
-        shopt -s dotglob nullglob
-        for src_file in "$shell_src"/*; do
-            [[ -f "$src_file" ]] || continue
+        if [[ "$VERBOSE" == "true" ]]; then
+            _lib_message -info "Buscando archivos de shell en: $shell_src"
+        fi
+        
+        while IFS= read -r -d '' src_file; do
             local filename
             filename=$(basename "$src_file")
-            [[ "$filename" == "." || "$filename" == ".." ]] && continue
-            
             local target="${HOME}/${filename}"
+            
             if [[ "$VERBOSE" == "true" ]]; then
-                _lib_message -info "Link: $filename -> $target"
+                _lib_message -info "Procesando shell file: $filename"
             fi
 
             if [[ "$DRY_RUN" == "true" ]]; then
@@ -719,8 +717,7 @@ install_symlinks() {
                     _lib_message -error "✗ Error al vincular $filename"
                 fi
             fi
-        done
-        shopt -u dotglob nullglob
+        done < <(find "$shell_src" -maxdepth 1 -type f -print0)
     else
         _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
