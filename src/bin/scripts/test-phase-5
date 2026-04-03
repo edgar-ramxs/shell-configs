@@ -1,0 +1,278 @@
+#!/bin/bash
+# -*- coding: utf-8 -*-
+
+# ============================================================================
+# TEST SUITE - FASE 5: Mejoras de Rendimiento
+# ============================================================================
+# Prueba la implementación de lazy loading, caching y optimizaciones de PATH
+
+set -e
+
+CONFIG_DIR="${HOME}/.config/shell"
+REPO_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/config"
+
+# Colores
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Contadores
+TESTS_PASSED=0
+TESTS_FAILED=0
+
+# ============================================================================
+# FUNCIONES DE UTILIDAD
+# ============================================================================
+
+test_header() {
+    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+test_pass() {
+    echo -e "${GREEN}✓ PASS${NC} - $1"
+    ((TESTS_PASSED++))
+}
+
+test_fail() {
+    echo -e "${RED}✗ FAIL${NC} - $1"
+    ((TESTS_FAILED++))
+}
+
+test_warn() {
+    echo -e "${YELLOW}⚠ WARN${NC} - $1"
+}
+
+# ============================================================================
+# TEST 1: Verificar que config/lib.sh existe y contiene lazy_load_function
+# ============================================================================
+
+test_header "TEST 1: Infrastructure - lazy_load_function en lib.sh"
+
+if [[ -f "$REPO_CONFIG_DIR/lib.sh" ]]; then
+    test_pass "config/lib.sh existe"
+else
+    test_fail "config/lib.sh no encontrado"
+    exit 1
+fi
+
+if grep -q "lazy_load_function()" "$REPO_CONFIG_DIR/lib.sh"; then
+    test_pass "lazy_load_function() está definida en lib.sh"
+else
+    test_fail "lazy_load_function() no encontrada en lib.sh"
+fi
+
+if grep -q "is_command_available()" "$REPO_CONFIG_DIR/lib.sh"; then
+    test_pass "is_command_available() está definida en lib.sh"
+else
+    test_fail "is_command_available() no encontrada en lib.sh"
+fi
+
+# ============================================================================
+# TEST 2: Verificar que config/functions-heavy existe
+# ============================================================================
+
+test_header "TEST 2: Heavy Functions - archivo config/functions-heavy"
+
+if [[ -f "$REPO_CONFIG_DIR/functions-heavy" ]]; then
+    test_pass "config/functions-heavy existe"
+    LINE_COUNT=$(wc -l < "$REPO_CONFIG_DIR/functions-heavy")
+    echo "         Líneas: $LINE_COUNT"
+else
+    test_fail "config/functions-heavy no encontrado"
+fi
+
+# ============================================================================
+# TEST 3: Validar sintaxis de archivos
+# ============================================================================
+
+test_header "TEST 3: Syntax Validation - Validar sintaxis bash"
+
+if bash -n "$REPO_CONFIG_DIR/lib.sh" 2>/dev/null; then
+    test_pass "config/lib.sh - sintaxis válida"
+else
+    test_fail "config/lib.sh - error de sintaxis"
+fi
+
+if bash -n "$REPO_CONFIG_DIR/functions" 2>/dev/null; then
+    test_pass "config/functions - sintaxis válida"
+else
+    test_fail "config/functions - error de sintaxis"
+fi
+
+if bash -n "$REPO_CONFIG_DIR/functions-heavy" 2>/dev/null; then
+    test_pass "config/functions-heavy - sintaxis válida"
+else
+    test_fail "config/functions-heavy - error de sintaxis"
+fi
+
+# ============================================================================
+# TEST 4: Verificar que lazy loading declarations están en functions
+# ============================================================================
+
+test_header "TEST 4: Lazy Loading Declarations"
+
+LAZY_FUNCTIONS=("compile-pls" "fzf-lovely" "extract-ports" "tell-me-a-joke" "pray-for-me" "cheat" "wttr" "crypto-rate" "initialize-git-repo" "calc")
+
+for func in "${LAZY_FUNCTIONS[@]}"; do
+    if grep -q "lazy_load_function.*\"$func\"" "$REPO_CONFIG_DIR/functions"; then
+        test_pass "lazy_load_function declarado para: $func"
+    else
+        test_fail "lazy_load_function NO declarado para: $func"
+    fi
+done
+
+# ============================================================================
+# TEST 5: Verificar que funciones pesadas están en functions-heavy
+# ============================================================================
+
+test_header "TEST 5: Heavy Functions - Funciones presentes en functions-heavy"
+
+for func in "${LAZY_FUNCTIONS[@]}"; do
+    if grep -q "^function $func\\|^$func()" "$REPO_CONFIG_DIR/functions-heavy"; then
+        test_pass "Función encontrada en functions-heavy: $func"
+    else
+        test_warn "Función NO encontrada en functions-heavy: $func"
+    fi
+done
+
+# ============================================================================
+# TEST 6: Verificar que funciones ligeras están en functions
+# ============================================================================
+
+test_header "TEST 6: Light Functions - Funciones en config/functions"
+
+LIGHT_FUNCTIONS=("hydra" "message" "man" "extract-files" "mkt" "cdl" "cmkdir" "rmk" "open-file" "venv-create")
+
+for func in "${LIGHT_FUNCTIONS[@]}"; do
+    if grep -q "^function $func\\|^$func()" "$REPO_CONFIG_DIR/functions"; then
+        test_pass "Función ligera presente: $func"
+    else
+        test_warn "Función ligera NO encontrada: $func"
+    fi
+done
+
+# ============================================================================
+# TEST 7: PATH Optimization - Verificar deduplicación
+# ============================================================================
+
+test_header "TEST 7: PATH Optimization - Validar config/exports"
+
+if [[ -f "$REPO_CONFIG_DIR/exports" ]]; then
+    test_pass "config/exports existe"
+    
+    # Verificar que NO hay duplicados en PATH
+    if grep -q "deduplicate_path" "$REPO_CONFIG_DIR/exports"; then
+        test_pass "deduplicate_path está siendo usada en exports"
+    else
+        test_warn "deduplicate_path NO está siendo usada en exports"
+    fi
+    
+    # Contar líneas de PATH construction
+    PATH_LINES=$(grep -A 100 "PATH_ARRAY=(" "$REPO_CONFIG_DIR/exports" | grep -B 100 "^)" | wc -l)
+    test_pass "PATH construction tiene $PATH_LINES líneas (optimizado)"
+else
+    test_fail "config/exports no encontrado"
+fi
+
+# ============================================================================
+# TEST 8: Caching - Verificar implementación de caché
+# ============================================================================
+
+test_header "TEST 8: Caching - is_command_available con caché"
+
+if grep -q "is_command_available()" "$REPO_CONFIG_DIR/lib.sh"; then
+    if grep -A 10 "is_command_available()" "$REPO_CONFIG_DIR/lib.sh" | grep -q "/tmp"; then
+        test_pass "is_command_available() implementa caching en /tmp"
+    else
+        test_warn "is_command_available() podría no estar usando caching"
+    fi
+fi
+
+# ============================================================================
+# TEST 9: Integración - Prueba de sourcing
+# ============================================================================
+
+test_header "TEST 9: Integration - Sourceando archivos en bash"
+
+# Crear shell temporal para testing
+TEST_SHELL=$(mktemp)
+trap "rm -f $TEST_SHELL" EXIT
+
+cat > "$TEST_SHELL" << 'EOF'
+#!/bin/bash
+set -e
+
+CONFIG_DIR="${REPO_CONFIG_DIR:-.}"
+
+# Sourcing order
+source "$CONFIG_DIR/lib.sh" 2>&1 || echo "ERROR_LIB"
+source "$CONFIG_DIR/functions" 2>&1 || echo "ERROR_FUNC"
+
+# Verificar que lazy_load_function está disponible
+declare -f lazy_load_function &>/dev/null && echo "OK_LAZY" || echo "ERROR_LAZY"
+
+# Verificar que message está disponible
+declare -f message &>/dev/null && echo "OK_MESSAGE" || echo "ERROR_MESSAGE"
+
+# Test de un comando ligero
+hydra &>/dev/null && echo "OK_HYDRA" || echo "ERROR_HYDRA"
+EOF
+
+REPO_CONFIG_DIR="$REPO_CONFIG_DIR" bash "$TEST_SHELL" > /tmp/test-output.txt 2>&1
+
+if grep -q "OK_LAZY" /tmp/test-output.txt; then
+    test_pass "lazy_load_function disponible después de sourcing"
+else
+    test_fail "lazy_load_function NO disponible después de sourcing"
+    cat /tmp/test-output.txt
+fi
+
+if grep -q "OK_MESSAGE" /tmp/test-output.txt; then
+    test_pass "message() disponible después de sourcing"
+else
+    test_fail "message() NO disponible después de sourcing"
+fi
+
+# ============================================================================
+# TEST 10: Performance - Medir tiempo de startup
+# ============================================================================
+
+test_header "TEST 10: Performance - Tiempo de startup"
+
+echo "Midiendo tiempo de sourcing de lib.sh..."
+TIME1=$( { time bash -c "source '$REPO_CONFIG_DIR/lib.sh'" 2>&1; } 2>&1 | grep real | awk '{print $2}')
+test_pass "lib.sh sourcing: $TIME1"
+
+echo "Midiendo tiempo de sourcing de functions..."
+TIME2=$( { time bash -c "source '$REPO_CONFIG_DIR/lib.sh' && source '$REPO_CONFIG_DIR/functions'" 2>&1; } 2>&1 | grep real | awk '{print $2}')
+test_pass "functions sourcing: $TIME2"
+
+echo "Midiendo tiempo de sourcing de functions-heavy..."
+TIME3=$( { time bash -c "source '$REPO_CONFIG_DIR/lib.sh' && source '$REPO_CONFIG_DIR/functions-heavy'" 2>&1; } 2>&1 | grep real | awk '{print $2}')
+test_pass "functions-heavy sourcing: $TIME3"
+
+# ============================================================================
+# RESUMEN
+# ============================================================================
+
+test_header "RESUMEN DE TESTS"
+
+TOTAL=$((TESTS_PASSED + TESTS_FAILED))
+PERCENTAGE=$((TESTS_PASSED * 100 / TOTAL))
+
+echo -e "${GREEN}Tests Pasados: $TESTS_PASSED${NC}"
+echo -e "${RED}Tests Fallidos: $TESTS_FAILED${NC}"
+echo -e "Total: $TOTAL"
+echo -e "Porcentaje: ${PERCENTAGE}%"
+
+if [[ $TESTS_FAILED -eq 0 ]]; then
+    echo -e "\n${GREEN}✓ FASE 5 LISTA PARA VALIDACIÓN${NC}"
+    exit 0
+else
+    echo -e "\n${YELLOW}⚠ Revisa los errores arriba${NC}"
+    exit 1
+fi

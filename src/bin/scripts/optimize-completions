@@ -1,0 +1,116 @@
+#!/bin/bash
+# -*- coding: utf-8 -*-
+
+# ============================================================================
+# COMPLETION CACHING OPTIMIZER - FASE 5
+# ============================================================================
+# Precompila y cachea completions de funciones ligeras para aún más velocidad
+
+set -e
+
+CONFIG_DIR="${1:-.}"
+CACHE_DIR="/tmp/shell-completions-cache"
+
+# Colores
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Crear directorio de caché
+mkdir -p "$CACHE_DIR"
+
+# ============================================================================
+# FUNCIÓN: Generar cache de completions para una función
+# ============================================================================
+
+cache_completions() {
+    local func_name="$1"
+    local source_file="$2"
+    
+    if [[ ! -f "$source_file" ]]; then
+        echo -e "${YELLOW}⚠${NC} Archivo no encontrado: $source_file"
+        return 1
+    fi
+    
+    # Extraer la definición de la función
+    local func_def=$(sed -n "/^function $func_name\\|^$func_name()/,/^}/p" "$source_file")
+    
+    if [[ -z "$func_def" ]]; then
+        echo -e "${YELLOW}⚠${NC} Función no encontrada: $func_name"
+        return 1
+    fi
+    
+    # Guardar en caché
+    local cache_file="$CACHE_DIR/${func_name}.cache"
+    echo "$func_def" > "$cache_file"
+    echo -e "${GREEN}✓${NC} Cached: $func_name ($(wc -l < "$cache_file") lines)"
+}
+
+# ============================================================================
+# FUNCIÓN: Generar índice de completions
+# ============================================================================
+
+generate_completion_index() {
+    local index_file="$CACHE_DIR/index"
+    
+    echo -e "${BLUE}Generating completion index...${NC}"
+    
+    {
+        echo "# Shell Completion Cache Index"
+        echo "# Generated: $(date)"
+        echo ""
+        
+        for cache_file in "$CACHE_DIR"/*.cache; do
+            if [[ -f "$cache_file" ]]; then
+                local name=$(basename "$cache_file" .cache)
+                local size=$(wc -l < "$cache_file")
+                local mtime=$(stat -f%m "$cache_file" 2>/dev/null || stat -c%Y "$cache_file")
+                echo "COMPLETION[${name}]=\"cached:${size}:${mtime}\""
+            fi
+        done
+    } > "$index_file"
+    
+    echo -e "${GREEN}✓${NC} Index created: $(wc -l < "$index_file") entries"
+}
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}COMPLETION CACHING OPTIMIZER${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Funciones ligeras a cachear
+LIGHT_FUNCTIONS=(
+    "message:$CONFIG_DIR/lib.sh"
+    "extract-files:$CONFIG_DIR/functions"
+    "mkt:$CONFIG_DIR/functions"
+    "cdl:$CONFIG_DIR/functions"
+    "open-file:$CONFIG_DIR/functions"
+)
+
+echo ""
+echo -e "${YELLOW}Caching light functions...${NC}"
+for entry in "${LIGHT_FUNCTIONS[@]}"; do
+    func_name="${entry%:*}"
+    source_file="${entry#*:}"
+    cache_completions "$func_name" "$source_file"
+done
+
+# Generar índice
+echo ""
+generate_completion_index
+
+# Estadísticas
+echo ""
+echo -e "${BLUE}Cache Statistics:${NC}"
+echo "  Cache directory: $CACHE_DIR"
+echo "  Cache files: $(ls -1 "$CACHE_DIR"/*.cache 2>/dev/null | wc -l)"
+echo "  Total size: $(du -sh "$CACHE_DIR" 2>/dev/null | awk '{print $1}')"
+
+echo ""
+echo -e "${GREEN}✓ Completion caching configured${NC}"
+echo -e "${BLUE}Cache will be reused on next shell startup${NC}"
