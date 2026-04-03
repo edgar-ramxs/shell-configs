@@ -651,51 +651,76 @@ readonly DOTFILES_REPO="${HOME}/.dotfiles/shell-configs"
 
 install_symlinks() {
     local target_shell="${1:-$INSTALL_SHELL}"
+    [[ -z "$target_shell" ]] && target_shell="bash"
     
     _lib_message -title "INSTALANDO ENLACES SIMBÓLICOS PARA: $target_shell"
     sleep 1
 
     local created=0
 
-    _lib_message -subtitle "Archivos home"
+    _lib_message -subtitle "Archivos home generales"
+    if [[ -d "$HOMEFS_DIR" ]]; then
+        shopt -s dotglob nullglob
+        for src_file in "$HOMEFS_DIR"/*; do
+            [[ -f "$src_file" ]] || continue
+            local filename
+            filename=$(basename "$src_file")
+            # Omitir archivos que no queremos en el home directamente si los hay
+            [[ "$filename" == "." || "$filename" == ".." ]] && continue
+            
+            local target="${HOME}/${filename}"
+            if [[ "$VERBOSE" == "true" ]]; then
+                _lib_message -info "Link: $filename -> $target"
+            fi
 
-    for file in .profile .hushlogin; do
-        local src_file="${HOMEFS_DIR}/${file}"
-        local target="${HOME}/${file}"
-        if [[ -f "$src_file" ]]; then
             if [[ "$DRY_RUN" == "true" ]]; then
                 _lib_message -info "[DRY-RUN] ln -sfn $src_file $target"
             else
-                ln -sfn "$src_file" "$target" && {
-                    _lib_message -success "✓ $file"
-                    ((created++))
-                }
-            fi
-        fi
-    done
-
-    _lib_message -subtitle "Archivos para shell: $target_shell"
-
-    local shell_src="${SHELLS_DIR}/${target_shell}"
-    if [[ "$VERBOSE" == "true" ]]; then
-        _lib_message -info "shell_src: $shell_src"
-    fi
-    if [[ -d "$shell_src" ]]; then
-        while IFS= read -r -d '' file; do
-            [[ -f "$file" ]] || continue
-            local filename
-            filename=$(basename "$file")
-            [[ "$filename" == "." || "$filename" == ".." ]] && continue
-            local target="${HOME}/${filename}"
-            if [[ "$DRY_RUN" == "true" ]]; then
-                _lib_message -info "[DRY-RUN] ln -sfn $file $target"
-            else
-                ln -sfn "$file" "$target" && {
+                if ln -sfn "$src_file" "$target"; then
                     _lib_message -success "✓ $filename"
                     ((created++))
-                }
+                else
+                    _lib_message -error "✗ Error al vincular $filename"
+                fi
             fi
-        done < <(find "$shell_src" -maxdepth 1 -type f -print0)
+        done
+        shopt -u dotglob nullglob
+    else
+        _lib_message -warning "Directorio home base no encontrado: $HOMEFS_DIR"
+    fi
+
+    _lib_message -subtitle "Archivos específicos de shell: $target_shell"
+    local shell_src="${SHELLS_DIR}/${target_shell}"
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        _lib_message -info "Buscando en: $shell_src"
+    fi
+
+    if [[ -d "$shell_src" ]]; then
+        shopt -s dotglob nullglob
+        for src_file in "$shell_src"/*; do
+            [[ -f "$src_file" ]] || continue
+            local filename
+            filename=$(basename "$src_file")
+            [[ "$filename" == "." || "$filename" == ".." ]] && continue
+            
+            local target="${HOME}/${filename}"
+            if [[ "$VERBOSE" == "true" ]]; then
+                _lib_message -info "Link: $filename -> $target"
+            fi
+
+            if [[ "$DRY_RUN" == "true" ]]; then
+                _lib_message -info "[DRY-RUN] ln -sfn $src_file $target"
+            else
+                if ln -sfn "$src_file" "$target"; then
+                    _lib_message -success "✓ $filename"
+                    ((created++))
+                else
+                    _lib_message -error "✗ Error al vincular $filename"
+                fi
+            fi
+        done
+        shopt -u dotglob nullglob
     else
         _lib_message -warning "Directorio de shell no encontrado: $shell_src"
     fi
@@ -886,9 +911,12 @@ main() {
             system_detection
             
             # Usar shell detectada si no se especificó explícitamente
-            if [[ "$INSTALL_SHELL" == "bash" && "$SHELL_DETECTED" != "bash" ]]; then
+            if [[ "$INSTALL_SHELL" == "bash" && -n "$SHELL_DETECTED" && "$SHELL_DETECTED" != "bash" ]]; then
                 INSTALL_SHELL="$SHELL_DETECTED"
             fi
+            
+            # Asegurar que INSTALL_SHELL tenga un valor
+            [[ -z "$INSTALL_SHELL" ]] && INSTALL_SHELL="bash"
             
             # Dependencias Linux
             if [[ "$INSTALL_DEPS_LINUX" == "true" ]]; then
