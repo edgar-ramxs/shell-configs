@@ -755,7 +755,8 @@ _lib_get_package_manager_commands() {
         ubuntu|debian)
             export PKG_UPDATE_CMD="sudo apt update -qq"
             export PKG_INSTALL_CMD="sudo apt install -y"
-            export PKG_CHECK_CMD="dpkg -l"
+            export PKG_CHECK_CMD="dpkg-query -W -f='\${Status}'"
+            export PKG_CHECK_FILTER="grep -q 'ok installed'"
             ;;
         arch|manjaro)
             export PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
@@ -797,11 +798,15 @@ _lib_parse_toml_packages() {
     
     [[ ! -f "$file" ]] && return 1
     
-    # Extraer la sección solicitada y parsear los nombres
-    # Busca el bloque de la sección y extrae los campos 'name = "..."'
-    sed -n "/^\[$section\]/,/^\[/p" "$file" | \
-        grep "name =" | \
-        sed -E 's/.*name = "([^"]+)".*/\1/'
+    # Extraer la sección solicitada y parsear los nombres usando awk
+    awk -v sect="[$section]" '
+        $0 == sect { in_sect=1; next }
+        /^\[/ && in_sect { in_sect=0 }
+        in_sect && /name =/ {
+            match($0, /name = "([^"]+)"/, arr)
+            if (arr[1]) print arr[1]
+        }
+    ' "$file"
 }
 
 # ============================================================================
@@ -826,11 +831,87 @@ _lib_parse_toml_field() {
     
     [[ ! -f "$file" ]] && return 1
     
-    # Busca la línea del elemento dentro de la sección y extrae el campo solicitado
-    sed -n "/^\[$section\]/,/^\[/p" "$file" | \
-        grep "name = \"$name\"" | \
-        grep -o "$field = \"[^\"]*\"" | \
-        sed -E "s/.*$field = \"([^\"]+)\".*/\1/"
+    # Busca la línea del elemento dentro de la sección y extrae el campo solicitado usando awk
+    awk -v sect="[$section]" -v target="name = \"$name\"" -v fld="$field =" '
+        $0 == sect { in_sect=1; next }
+        /^\[/ && in_sect { in_sect=0 }
+        in_sect && $0 ~ target {
+            match($0, fld " \"([^\"]+)\"", arr)
+            if (arr[1]) print arr[1]
+        }
+    ' "$file"
+}
+
+# ============================================================================
+# FUNCIÓN: _lib_map_package_name
+# ============================================================================
+# Mapea un nombre genérico de paquete al nombre específico de la distro
+#
+# Argumentos:
+#   $1: Distribución
+#   $2: Nombre del paquete
+#
+# Retorno:
+#   Nombre mapeado
+#
+_lib_map_package_name() {
+    local distro="$1"
+    local pkg="$2"
+    
+    case "$pkg" in
+        "fd-find")
+            case "$distro" in
+                arch|manjaro) echo "fd" ;;
+                *) echo "fd-find" ;;
+            esac
+            ;;
+        "bat")
+            case "$distro" in
+                ubuntu|debian) echo "batcat" ;;
+                *) echo "bat" ;;
+            esac
+            ;;
+        "golang-go")
+            case "$distro" in
+                arch|manjaro) echo "go" ;;
+                *) echo "golang-go" ;;
+            esac
+            ;;
+        "nodejs")
+            case "$distro" in
+                arch|manjaro) echo "nodejs" ;;
+                *) echo "nodejs" ;;
+            esac
+            ;;
+        "python3-pip")
+            case "$distro" in
+                arch|manjaro) echo "python-pip" ;;
+                *) echo "python3-pip" ;;
+            esac
+            ;;
+        "python3-venv")
+            case "$distro" in
+                arch|manjaro) echo "python" ;; # Arch includes venv in python pkg
+                *) echo "python3-venv" ;;
+            esac
+            ;;
+        "build-essential")
+            case "$distro" in
+                arch|manjaro) echo "base-devel" ;;
+                fedora|rhel) echo "@development-tools" ;;
+                *) echo "build-essential" ;;
+            esac
+            ;;
+        "p7zip-full")
+            case "$distro" in
+                arch|manjaro) echo "p7zip" ;;
+                *) echo "p7zip-full" ;;
+            esac
+            ;;
+        *)
+            echo "$pkg"
+            ;;
+    esac
 }
 
 # ============================================================================
@@ -869,11 +950,29 @@ _lib_check_packages_array() {
 
     # Verificar cada paquete
     for pkg in "${packages_ref[@]}"; do
-        if command -v "$pkg" >/dev/null 2>&1; then
+        local mapped_pkg=$(_lib_map_package_name "$distro" "$pkg")
+        
+        # Verificación híbrida: comando directo O comando del gestor
+        local found=false
+        # 1. Intentar como comando
+        if command -v "$pkg" >/dev/null 2>&1 || command -v "$mapped_pkg" >/dev/null 2>&1; then
+            found=true
+        # 2. Intentar con el gestor de paquetes (usando el nombre mapeado)
+        else
+            if [[ -n "${PKG_CHECK_FILTER:-}" ]]; then
+                if eval "$PKG_CHECK_CMD $mapped_pkg" 2>/dev/null | eval "$PKG_CHECK_FILTER" &>/dev/null; then
+                    found=true
+                fi
+            elif eval "$PKG_CHECK_CMD $mapped_pkg" &>/dev/null; then
+                found=true
+            fi
+        fi
+
+        if [[ "$found" == "true" ]]; then
             _lib_message -success "$pkg -> disponible"
         else
             _lib_message -warning "$pkg -> no encontrado"
-            missing_ref+=("$pkg")
+            missing_ref+=("$mapped_pkg")
         fi
     done
 
@@ -945,17 +1044,46 @@ _lib_install_packages_array() {
     # Instalar paquetes
     _lib_message -subtitle "Instalando paquetes..."
     for pkg in "${packages_ref[@]}"; do
-        # Verificar si ya está instalado
-        if command -v "$pkg" >/dev/null 2>&1 || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
+        # Mapear nombre si es necesario (por si se pasó el nombre genérico)
+        local mapped_pkg=$(_lib_map_package_name "$distro" "$pkg")
+        
+        # Verificar si ya está instalado (verificación híbrida)
+        local already_installed=false
+        if command -v "$pkg" >/dev/null 2>&1 || command -v "$mapped_pkg" >/dev/null 2>&1; then
+            already_installed=true
+        else
+            if [[ -n "${PKG_CHECK_FILTER:-}" ]]; then
+                if eval "$PKG_CHECK_CMD $mapped_pkg" 2>/dev/null | eval "$PKG_CHECK_FILTER" &>/dev/null; then
+                    already_installed=true
+                fi
+            elif eval "$PKG_CHECK_CMD $mapped_pkg" &>/dev/null; then
+                already_installed=true
+            fi
+        fi
+
+        if [[ "$already_installed" == "true" ]]; then
             _lib_message -success "$pkg -> ya disponible"
             SUCCESSFUL_PACKAGES+=("$pkg")
             continue
         fi
         
-        _lib_message -info "Instalando: $pkg"
-        if eval "$PKG_INSTALL_CMD $pkg" &>/dev/null; then
+        _lib_message -info "Instalando: $mapped_pkg..."
+        if eval "$PKG_INSTALL_CMD $mapped_pkg" &>/dev/null; then
             # Verificar que se instaló correctamente
-            if command -v "$pkg" &>/dev/null || eval "$PKG_CHECK_CMD $pkg" &>/dev/null; then
+            local now_installed=false
+            if command -v "$pkg" &>/dev/null || command -v "$mapped_pkg" &>/dev/null; then
+                now_installed=true
+            else
+                if [[ -n "${PKG_CHECK_FILTER:-}" ]]; then
+                    if eval "$PKG_CHECK_CMD $mapped_pkg" 2>/dev/null | eval "$PKG_CHECK_FILTER" &>/dev/null; then
+                        now_installed=true
+                    fi
+                elif eval "$PKG_CHECK_CMD $mapped_pkg" &>/dev/null; then
+                    now_installed=true
+                fi
+            fi
+
+            if [[ "$now_installed" == "true" ]]; then
                 _lib_message -success "Instalado: $pkg"
                 SUCCESSFUL_PACKAGES+=("$pkg")
             else
@@ -963,7 +1091,7 @@ _lib_install_packages_array() {
                 FAILED_PACKAGES+=("$pkg")
             fi
         else
-            _lib_message -error "Falló instalación: $pkg"
+            _lib_message -error "Falló instalación: $mapped_pkg"
             FAILED_PACKAGES+=("$pkg")
         fi
         sleep 1
