@@ -755,8 +755,8 @@ _lib_get_package_manager_commands() {
         ubuntu|debian)
             export PKG_UPDATE_CMD="sudo apt update -qq"
             export PKG_INSTALL_CMD="sudo apt install -y"
-            export PKG_CHECK_CMD="dpkg-query -W -f='\${Status}'"
-            export PKG_CHECK_FILTER="grep -q 'ok installed'"
+            export PKG_CHECK_CMD="dpkg -s"
+            export PKG_CHECK_FILTER="grep -q 'Status: install ok installed'"
             ;;
         arch|manjaro)
             export PKG_UPDATE_CMD="sudo pacman -Sy --noconfirm"
@@ -1076,7 +1076,8 @@ _lib_install_packages_array() {
         fi
         
         _lib_message -info "Instalando: $mapped_pkg..."
-        if eval "$PKG_INSTALL_CMD $mapped_pkg" &>/dev/null; then
+        # No silenciar para que el usuario vea el progreso/errores
+        if eval "$PKG_INSTALL_CMD $mapped_pkg"; then
             # Verificar que se instaló correctamente
             local now_installed=false
             if command -v "$pkg" &>/dev/null || command -v "$mapped_pkg" &>/dev/null; then

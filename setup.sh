@@ -275,6 +275,10 @@ install_linux_dependencies() {
         return 0
     fi
     
+    if [[ "$VERBOSE" == "true" ]]; then
+        _lib_message -info "Paquetes faltantes detectados: ${MISSING_PKGS[*]}"
+    fi
+
     _lib_message -title "INSTALANDO PAQUETES DE LINUX"
     _lib_install_packages_array "$DISTRO" MISSING_PKGS
 }
