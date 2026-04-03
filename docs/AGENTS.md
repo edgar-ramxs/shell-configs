@@ -1,6 +1,6 @@
 # AGENTS.md - Guía Completa del Proyecto Shell-Configs
 
-**Última Actualización:** 25 de enero de 2026  
+**Última Actualización:** 3 de abril de 2026  
 **Status:** Production Ready ✅  
 **Mantener Actualizado:** Después de cada cambio importante
 
@@ -85,39 +85,34 @@
 
 ### Componentes Principales
 
-**setup.sh** (890 líneas)
+**setup.sh** (559 líneas)
 - Punto de entrada
 - Detecta distro (Debian/Ubuntu, Arch, Fedora)
 - Instala paquetes individuales
 - Clona repositorios GitHub
 - Configura frameworks
 - Manejo de errores robusto
+- Instalación de enlaces simbólicos
 
-**config/lib.sh** (498 líneas)
-- Funciones compartidas reutilizables
+**src/config/library.sh** (reutilizable)
+- Funciones compartidas
 - `message()` - Output formateado con colores
 - `lazy_load_function()` - Lazy loading
 - `is_command_available()` - Verificación de comandos
 - `validate_directory_exists()` - Validación de directorios
 
-**config/functions** (368 líneas)
+**src/config/functions** 
 - Funciones ligeras cargadas siempre
 - `extract()` - Descompresión inteligente
 - `mkcd()` - Crear y entrar a directorio
 - Utilidades de uso frecuente
 
-**config/functions-heavy** (214 líneas)
-- Funciones pesadas cargadas bajo demanda
-- `backup_configs()`
-- `restore_configs()`
-- `git_status_all()`
-
-**local/bin/shell-config** (487 líneas)
+**src/bin/scripts/shell-config**
 - Herramienta de gestión de configuraciones
 - Comandos: backup, restore, copy, list, remove, clean, push, status
 - Sistema de archivos comprimidos para backups
 
-**local/bin/check-deps** (371 líneas)
+**src/bin/scripts/check-deps**
 - Validador de dependencias
 - Modos: default (verify), --install, --report, --check-missing
 - Multi-distro support
@@ -201,56 +196,57 @@ shell-configs/
 ├── .gitignore
 │
 ├── SETUP & MAIN
-├── setup.sh                       # Script principal de instalación (890 líneas)
+├── setup.sh                       # Script principal de instalación (559 líneas)
 ├── dependencies.toml              # Especificación de dependencias (TOML)
 ├── README.md                      # Documentación principal
 │
 ├── CONFIG/
-├── config/
-│   ├── lib.sh                    # Librería compartida (498 líneas)
-│   ├── exports                   # Variables de entorno
-│   ├── aliases                   # Alias de shell
-│   ├── functions                 # Funciones ligeras (368 líneas)
-│   └── functions-heavy           # Funciones pesadas (214 líneas)
-│
-├── SHELLS/
-├── shells/
-│   ├── bash/
-│   │   └── .bashrc              # Configuración de Bash
-│   └── zsh/
-│       └── .zshrc               # Configuración de Zsh
-│
-├── LOCAL BINARIES/
-├── local/
-│   ├── bin/
-│   │   ├── shell-config         # Gestor de configuraciones (487 líneas)
-│   │   ├── check-deps           # Validador de dependencias (371 líneas)
-│   │   ├── download-fonts       # Descargador de fuentes
-│   │   ├── ytdlp_downloader     # Descargador de videos
-│   │   └── [otros scripts]
+├── src/
+│   ├── config/
+│   │   ├── library.sh             # Librería compartida (reutilizable)
+│   │   ├── exports                # Variables de entorno
+│   │   ├── aliases                # Alias de shell
+│   │   └── functions              # Funciones ligeras
 │   │
-│   ├── ascii/
-│   │   ├── animations/          # Scripts de animaciones ASCII
-│   │   ├── asciiarts/           # Artísticas ASCII
-│   │   ├── colorsscripts/       # Scripts de colores
-│   │   └── fetchinfo/           # Scripts de información del sistema
-│
-├── HOME FOLDER/
-├── home/                          # Archivos para copiar a ~/ (vacío actualmente)
+│   ├── home/
+│   │   ├── .profile               # Configuración de perfil
+│   │   ├── .hushlogin             # Silenciar login
+│   │   └── shells/
+│   │       ├── bash/
+│   │       │   ├── .bashrc        # Configuración de Bash
+│   │       │   └── .bash_logout   #Logout de Bash
+│   │       └── zsh/
+│   │           ├── .zshrc         # Configuración de Zsh
+│   │           └── .p10k.zsh      # Configuración de Powerlevel10k
+│   │
+│   ├── bin/
+│   │   ├── scripts/               # Scripts ejecutables en PATH
+│   │   │   ├── shell-config       # Gestor de configuraciones
+│   │   │   ├── check-deps         # Validador de dependencias
+│   │   │   └── [otros scripts]
+│   │   │
+│   │   ├── ascii/
+│   │   │   ├── animations/        # Scripts de animaciones ASCII
+│   │   │   ├── asciiarts/         # Artísticas ASCII
+│   │   │   ├── colorsscripts/    # Scripts de colores
+│   │   │   └── fetchinfo/         # Scripts de información del sistema
+│   │   │
+│   │   └── draws/                 # Dibujos ASCII
+│   │
+│   ├── packages/
+│   │   └── dependencies.toml      # Definición de dependencias
+│   │
+│   └── templates/
+│       └── backupInfo.template     # Template para backups
 │
 ├── DOCUMENTATION/
 ├── docs/
-│   ├── PHASE_*.md               # Resultados de cada fase
-│   ├── INDEX.md                 # Índice de documentación
-│   ├── QUICK_REFERENCE.md       # Referencia rápida de comandos
-│   ├── TROUBLESHOOTING.md       # Guía de problemas comunes
-│   ├── CODE_REVIEW.md           # Revisión de código consolidada
-│   ├── PROJECT_STATUS.md        # Estado del proyecto
-│   ├── README.md                # Guía de lectura de docs
-│   └── AGENTS.md                # Este archivo
+│   ├── AGENTS.md                  # Este archivo
+│   ├── CHANGELOG.md               # Historial de cambios
+│   ├── CONTRIBUTING.md            # Guía de contribuciones
+│   └── TROUBLESHOOTING.md         # Guía de problemas comunes
 │
 └── OTROS/
-    ├── MEJORAS_PLAN.md          # Plan de mejoras (antiguo)
     └── [Archivos históricos]
 ```
 
@@ -300,7 +296,7 @@ Cada sección tiene:
   - `lazy_load_function()` - Sistema de lazy loading
   - `get_distro()` - Detectar distro
 
-**local/bin/shell-config** - Gestor de configuraciones
+**src/bin/scripts/shell-config** - Gestor de configuraciones
 - 487 líneas
 - Operaciones:
   - `backup_shell_configs()` - Crear backup comprimido
@@ -312,7 +308,7 @@ Cada sección tiene:
   - `push_changes()` - Commit y push a Git
   - `show_status()` - Ver estado de Git
 
-**local/bin/check-deps** - Validador de dependencias
+**src/bin/scripts/check-deps** - Validador de dependencias
 - 371 líneas
 - Modos:
   - default: Verificar dependencias
@@ -617,6 +613,35 @@ Restauración completa
 - ✅ Todas las correcciones de shellcheck
 - ✅ Documentación exhaustiva
 
+### Fase 6 (Quick Wins)
+- ✅ Scripts en PATH (src/bin/scripts/)
+- ✅ Variable DOTFILES_DIR en exports
+- ✅ Estructura de directorios actualizada (src/ en lugar de config/, local/)
+
+### Fase 7 (Refactorización setup.sh)
+- ✅ Sistema de flags completo con gestión granular de dependencias:
+  - `--shell <bash|zsh>` - Shell a configurar
+  - `--with-deps-linux` - Paquetes Linux
+  - `--with-deps-python` - Paquetes Python
+  - `--with-deps-node` - Paquetes Node.js
+  - `--with-deps-rust` - Paquetes Rust
+  - `--with-deps-go` - Paquetes Go
+  - `--with-deps` - Todos los paquetes
+  - `--with-repos` - Repositorios GitHub
+  - `--all` - Instalar todo
+- ✅ Sistema de backup integrado:
+  - Flag `--with-backup` crea backup de configuraciones
+  - Backup en `${XDG_STATE_HOME}/shells-configs/backup/{timestamp}/`
+  - Template `backupInfo.template` para metadata
+  - Soporta dry-run
+- ✅ Sistema de gestión de API keys:
+  - `src/templates/keys.template` - Template con +50 variables
+  - `src/config/keys` - Archivo privado (ignorado por git)
+  - Importación automática en exports
+- ✅ dependencies.toml limpiado (eliminados duplicados, corregidas descripciones)
+- ✅ Rutas actualizadas (DEPS_FILE, SCRIPTS_DIR, DRAWS_DIR)
+- ✅ export OSH/ZSH apuntan a ${XDG_DATA_HOME}/repositories/
+
 ---
 
 ## Roadmap Futuro (Fases 6-9)
@@ -625,7 +650,7 @@ Restauración completa
 **Impacto Alto + Esfuerzo Bajo**
 
 1. **Logging Centralizado**
-   - Guardar logs en `~/.cache/shell-configs/`
+   - Guardar logs en `~/.cache/shells-configs/`
    - Timestamps en cada evento
    - Fácil debugging
 
@@ -648,6 +673,11 @@ Restauración completa
    - Generar docs de dependencies.toml
    - Lista de paquetes con descripciones
    - Información de alternativas
+
+6. **Scripts en PATH** ✅ (COMPLETADO)
+   - Variable DOTFILES_DIR en exports
+   - Scripts de src/bin/scripts/ disponibles en PATH
+   - Funciona para todas las shells (bash/zsh)
 
 ### Fase 7: Robustez (2-3 semanas)
 **Impacto Medio + Esfuerzo Medio**
@@ -780,6 +810,6 @@ Uso este documento como tu guía completa del proyecto. ¡Adelante!
 
 ---
 
-**Último Update:** 25 de enero de 2026  
-**Próximo Update:** Después de Fase 6
+**Último Update:** 3 de abril de 2026  
+**Próximo Update:** Después de cambios significativos
 

@@ -396,9 +396,9 @@ du -h ~/.config/shell/backups/
 tar -xzf ~/.config/shell/backups/shell-backup-*.tar.gz -C ~
 
 # 4. Si falla totalmente, copiar archivos manualmente
-cd ~/path/to/shell-configs
-cp config/lib.sh ~/.config/shell/
-cp config/functions ~/.config/shell/
+cd ~/.dotfiles/shell-configs
+cp src/config/library.sh ~/.config/shell/
+cp src/config/functions ~/.config/shell/
 ```
 
 ---
@@ -580,7 +580,7 @@ bash -n ~/.config/shell/functions
 bash -n ~/.config/shell/aliases
 bash -n ~/.config/shell/exports
 bash -n setup.sh
-bash -n local/bin/shell-config
+bash -n src/bin/scripts/shell-config
 
 # Si no hay error, sintaxis está bien
 ```

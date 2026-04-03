@@ -20,14 +20,14 @@
 
 ## 📁 Estructura de Contribución
 
-- **Scripts:** Deben ir en `source/local/bin/`.
-- **Configuraciones:** Deben ir en `source/config/` o `source/shells/`.
-- **Arte ASCII:** Debe ir en `source/local/ascii/`.
+- **Scripts:** Deben ir en `src/bin/scripts/`.
+- **Configuraciones:** Deben ir en `src/config/` o `src/home/shells/`.
+- **Arte ASCII:** Debe ir en `src/bin/ascii/`.
 - **Documentación:** Debe ir en `docs/` con nombres en mayúsculas.
 
 ## 🧪 Pruebas
 
 Antes de enviar un PR, ejecuta las pruebas de la fase 5:
 ```bash
-./source/local/bin/test-phase-5
+./src/bin/scripts/test-phase-5
 ```
