@@ -1,0 +1,140 @@
+#     █████╗ ██╗     ██╗ █████╗ ███████╗███████╗███████╗
+#    ██╔══██╗██║     ██║██╔══██╗██╔════╝██╔════╝██╔════╝
+#    ███████║██║     ██║███████║███████╗█████╗  ███████╗
+#    ██╔══██║██║     ██║██╔══██║╚════██║██╔══╝  ╚════██║
+#    ██║  ██║███████╗██║██║  ██║███████║███████╗███████║
+#    ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝
+
+# aliases for common commands
+alias cls="clear"
+alias cll="clear; ls"
+alias cla="clear; ls -la"
+alias clf="clear; fetch"
+
+# ls aliases using lsd
+alias ls="lsd --group-dirs=first"
+alias la="lsd -a --group-dirs=first"
+alias ll="lsd -lh --group-dirs=first"
+alias lh="lsd -lha --group-dirs=first"
+
+# misc aliases
+alias cat="search-cat"
+alias icat="kitty +kitten icat"
+alias clock="tty-clock -s -b -c -r"
+alias free="free -h"
+alias smki="sudo make clean install"
+alias myip="curl -s ifconfig.me/all.json | jq"
+alias grup="sudo grub-mkconfig -o /boot/grub/grub.cfg"
+
+# reload command
+alias rld-zsh="source ~/.zshrc"
+alias rld-bash="source ~/.bashrc"
+alias rld-fonts="fc-cache -v -f"
+
+# permissions
+alias per-mx="chmod a+x"
+alias per-000="chmod 000"
+alias per-644="chmod 644"
+alias per-755="chmod 755"
+
+# flatpak
+alias ftki="flatpak install"
+alias ftks="flatpak search"
+alias ftkr="flatpak remove"
+alias ftku="flatpak update"
+
+# python venv
+alias venv-stop="deactivate"
+alias venv-start="source \$(get-venv-name)/bin/activate"
+alias venv-name="basename \$(dirname \$(dirname \$(which python)))"
+alias venv-path="echo \$(dirname \$(dirname \$(which python)))"
+
+# db services [status|start|stop]
+alias db-ser-mys="sudo service mysql"
+alias db-ser-mgd="sudo service mongod"
+alias db-ser-pos="sudo service postgresql"
+alias db-ser-rds="sudo service redis-server"
+
+# system services
+alias sys-sto="sudo systemctl stop"
+alias sys-sta="sudo systemctl start"
+alias sys-stu="sudo systemctl status"
+alias sys-ena="sudo systemctl enable"
+alias sys-dis="sudo systemctl disable"
+alias sys-res="sudo systemctl restart"
+
+# create local servers
+alias server-php="php -S 0.0.0.0:8000"
+alias server-py="python -m http.server 8000"
+alias server-rs="cargo install basic-http-server && basic-http-server . -a 0.0.0.0 -p 8000"
+
+# rlcone alias
+alias rcln-status='systemctl --user status rclone-gdrive.service'
+alias rcln-logs='journalctl --user -u rclone-gdrive.service -f'
+alias rcln-restart='systemctl --user restart rclone-gdrive.service'
+alias rcln-stop='systemctl --user stop rclone-gdrive.service'
+alias rcln-start='systemctl --user start rclone-gdrive.service'
+alias rcln-enable='systemctl --user enable rclone-gdrive.service'
+alias rcln-disable='systemctl --user disable rclone-gdrive.service'
+
+# rstudio server management
+alias rstudio-stop="sudo rstudio-server stop"
+alias rstudio-start="sudo rstudio-server start"
+alias rstudio-status="sudo rstudio-server status"
+alias rstudio-restart="sudo rstudio-server restart"
+alias rstudio-enable="sudo rstudio-server enable"
+alias rstudio-disable="sudo rstudio-server disable"
+
+# edit config shell files
+alias rcfg-zsh="$EDITOR $HOME/.zshrc"
+alias rcfg-bash="$EDITOR $HOME/.bashrc"
+alias rcfg-profile="$EDITOR $HOME/.profile"
+
+# edit config variables files
+alias rcfg-aliases="$EDITOR $XDG_CONFIG_HOME/shell-configs/aliases"
+alias rcfg-exports="$EDITOR $XDG_CONFIG_HOME/shell-configs/exports"
+alias rcfg-functions="$EDITOR $XDG_CONFIG_HOME/shell-configs/functions"
+
+# edit config tilling windows manager
+alias rcfg-sxhkd="$EDITOR $XDG_CONFIG_HOME/sxhkd/sxhkdrc"
+alias rcfg-bspwm="$EDITOR $XDG_CONFIG_HOME/bspwm/bspwmrc"
+alias rcfg-kitty="$EDITOR $XDG_CONFIG_HOME/kitty/kitty.conf"
+alias rcfg-polybar="$EDITOR $XDG_CONFIG_HOME/polybar/config.ini"
+
+
+# System package management aliases by distribution
+# Use the appropriate prefix based on your Linux distribution
+# ============================================================================
+
+# Arch Linux (pacman + paru/yay helpers)
+alias arch-updating="sudo pacman -Syu"
+alias arch-updating-aur="paru -Syu"  # Requires paru or yay installed
+alias arch-cleaning="sudo pacman -Sc && sudo pacman -Qtdq | sudo pacman -Rns -"
+alias arch-cleaning-deep="sudo pacman -Scc && sudo pacman -Qtdq | sudo pacman -Rns -"
+alias arch-searching="pacman -Ss"
+alias arch-pkg-info="pacman -Si"
+alias arch-pkg-list="pacman -Qe"
+alias arch-pkg-list-orphans="pacman -Qtdq"
+alias arch-pkg-remove="sudo pacman -R"
+alias arch-pkg-purge="sudo pacman -Rns"
+
+# Debian/Ubuntu (apt + nala helper)
+alias deb-updating="sudo apt update && sudo apt upgrade -y"
+alias deb-updating-full="sudo apt update && sudo apt full-upgrade -y"
+alias deb-cleaning="sudo apt autoremove -y && sudo apt autoclean"
+alias deb-searching="apt search"
+alias deb-pkg-info="apt show"
+alias deb-pkg-list="apt list --installed"
+alias deb-pkg-remove="sudo apt remove"
+alias deb-pkg-purge="sudo apt purge"
+alias deb-fix-dpkg="sudo dpkg --configure -a && sudo apt --fix-broken install -y"
+
+# Fedora (dnf)
+alias fed-updating="sudo dnf update -y"
+alias fed-updating-all="sudo dnf upgrade -y"
+alias fed-cleaning="sudo dnf autoremove -y && sudo dnf clean all"
+alias fed-searching="dnf search"
+alias fed-pkg-info="dnf info"
+alias fed-pkg-list="dnf list installed"
+alias fed-pkg-remove="sudo dnf remove"
+alias fed-pkg-purge="sudo dnf remove"  # dnf remove handles dependencies
