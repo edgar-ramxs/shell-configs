@@ -1,0 +1,212 @@
+#    ███████╗██╗  ██╗██████╗  ██████╗ ██████╗ ████████╗███████╗
+#    ██╔════╝╚██╗██╔╝██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝
+#    █████╗   ╚███╔╝ ██████╔╝██║   ██║██████╔╝   ██║   ███████╗
+#    ██╔══╝   ██╔██╗ ██╔═══╝ ██║   ██║██╔══██╗   ██║   ╚════██║
+#    ███████╗██╔╝ ██╗██║     ╚██████╔╝██║  ██║   ██║   ███████║
+#    ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
+
+# Directorio de dotfiles shell-configs
+export DOTFILES_DIR="${HOME}/.dotfiles/shell-configs"
+
+# ============================================================================
+# DETECCIÓN DE APLICACIONES PREDETERMINADAS
+# ============================================================================
+
+# Detectar y asignar aplicación de archivo automáticamente
+export FILE="${FILE:-$(command -v thunar || command -v nautilus || command -v dolphin || echo 'none')}"
+
+# Detectar y asignar editor automáticamente
+if command -v code &>/dev/null; then
+    export EDITOR="code --wait"
+elif command -v vim &>/dev/null; then
+    export EDITOR="vim"
+elif command -v nano &>/dev/null; then
+    export EDITOR="nano"
+else
+    export EDITOR="vi"
+fi
+
+# Detectar y asignar lector de PDF automáticamente
+export READER="${READER:-$(command -v zathura || command -v evince || command -v okular || echo 'none')}"
+
+# Detectar y asignar terminal automáticamente
+export TERMINAL="${TERMINAL:-$(command -v kitty || command -v alacritty || command -v gnome-terminal || echo 'xterm')}"
+
+# Detectar y asignar navegador automáticamente
+export BROWSER="${BROWSER:-$(command -v firefox || command -v chromium || command -v google-chrome || echo 'none')}"
+
+# ============================================================================
+# CONFIGURACIÓN DE HISTORIAL (SHELL-AGNOSTIC)
+# ============================================================================
+
+# Evitar duplicados y comandos simples en el historial
+export HISTCONTROL=erasedups:ignoreboth
+export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
+export HISTIGNORE="&:clear:ls:cd:[bf]g:exit:[ t\]*"
+export HISTORY_IGNORE="(ls|cd|pwd|exit|sudo reboot|history|cd -|cd ..)"
+export HISTSIZE=10000
+export SAVEHIST=10000
+export HISTFILESIZE=10000
+
+# ============================================================================
+# OPTIMIZACIONES DE APLICACIONES ESPECÍFICAS
+# ============================================================================
+
+# Mozilla Firefox
+export MOZ_USE_OMTC=1
+
+# TensorFlow
+export TF_CPP_MIN_LOG_LEVEL=2
+
+# Java
+export _JAVA_AWT_WM_NONREPARENTING=1
+export AWT_TOOLKIT="MToolkit wmname LG3D"
+
+# ============================================================================
+# CONFIGURACIÓN DE PROMPT Y SUDO
+# ============================================================================
+
+export SUDO_PROMPT="[󱕴] Password [󱕴]: "
+export PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"
+
+# ============================================================================
+# PATH - CONSTRUCCIÓN CENTRALIZADA Y OPTIMIZADA
+# ============================================================================
+
+# Inicializar PATH con rutas principales del sistema (orden de prioridad)
+_PATH_COMPONENTS=(
+    "$HOME/.local/bin"           # Binarios locales del usuario (prioridad máxima)
+    "$HOME/bin"                  # Binarios en home
+    "/usr/local/bin"             # Binarios locales del sistema
+    "/usr/bin"                   # Binarios del sistema
+    "/bin"                       # Binarios esenciales
+    "/usr/local/sbin"            # Admin binarios locales
+    "/usr/sbin"                  # Admin binarios del sistema
+    "/sbin"                      # Admin binarios esenciales
+)
+
+# Agregar perl si está disponible
+if [[ -d "/usr/bin/vendor_perl" ]] || [[ -d "/usr/bin/site_perl" ]]; then
+    _PATH_COMPONENTS+=(
+        "/usr/bin/vendor_perl"
+        "/usr/bin/site_perl"
+        "/usr/bin/core_perl"
+    )
+fi
+
+# Agregar juegos si están disponibles
+if [[ -d "/usr/local/games" ]] || [[ -d "/usr/games" ]]; then
+    _PATH_COMPONENTS+=(
+        "/usr/local/games"
+        "/usr/share/games"
+        "/usr/games"
+    )
+fi
+
+# Agregar Snap si está disponible
+if [[ -d "/snap/bin" ]]; then
+    _PATH_COMPONENTS+=("/snap/bin")
+fi
+
+# Agregar Flatpak si está disponible
+if [[ -d "$HOME/.local/share/flatpak/exports/bin" ]] || [[ -d "/var/lib/flatpak/exports/bin" ]]; then
+    _PATH_COMPONENTS+=(
+        "$HOME/.local/share/flatpak/exports/bin"
+        "/var/lib/flatpak/exports/bin"
+    )
+fi
+
+# Agregar Rust/Cargo si está disponible
+if [[ -d "$HOME/.cargo/bin" ]] || [[ -d "$HOME/.local/share/cargo/bin" ]]; then
+    _PATH_COMPONENTS+=(
+        "$HOME/.cargo/bin"
+        "$HOME/.local/share/cargo/bin"
+    )
+fi
+
+# Agregar Go si está disponible
+if [[ -d "/usr/local/go/bin" ]] || [[ -d "$HOME/go/bin" ]]; then
+    _PATH_COMPONENTS+=(
+        "/usr/local/go/bin"
+        "$HOME/go/bin"
+    )
+fi
+
+# Agregar Node.js (NVM) si está disponible
+if [[ -d "$HOME/.nvm" ]]; then
+    export NVM_DIR="$HOME/.nvm"
+elif [[ -d "$HOME/.config/nvm" ]]; then
+    export NVM_DIR="$HOME/.config/nvm"
+fi
+
+if [[ -n "$NVM_DIR" ]] && [[ -d "$NVM_DIR/versions/node" ]]; then
+    # Obtener la versión más reciente disponible
+    _NVM_VERSION=$(ls -td "$NVM_DIR/versions/node"/* 2>/dev/null | head -1)
+    if [[ -n "$_NVM_VERSION" ]]; then
+        _PATH_COMPONENTS+=("$_NVM_VERSION/bin")
+    fi
+    unset _NVM_VERSION
+fi
+
+# Agregar Bun si está disponible
+if [[ -d "$HOME/.bun/bin" ]]; then
+    export BUN_INSTALL="$HOME/.bun"
+    _PATH_COMPONENTS+=("$HOME/.bun/bin")
+fi
+
+# Agregar PyEnv si está disponible (Python environment manager)
+if [[ -d "$HOME/.pyenv" ]]; then
+    export PYENV_ROOT="$HOME/.pyenv"
+    _PATH_COMPONENTS+=(
+        "$PYENV_ROOT/shims"
+        "$PYENV_ROOT/bin"
+    )
+fi
+
+# Agregar .NET si está disponible
+if [[ -d "$HOME/.dotnet" ]]; then
+    _PATH_COMPONENTS+=("$HOME/.dotnet")
+fi
+
+# Agregar Docker si está disponible
+if [[ -d "$HOME/.docker/bin" ]]; then
+    _PATH_COMPONENTS+=("$HOME/.docker/bin")
+fi
+
+# Agregar scripts de shell-configs al PATH
+if [[ -d "$DOTFILES_DIR/src/bin/scripts" ]]; then
+    _PATH_COMPONENTS+=("$DOTFILES_DIR/src/bin/scripts")
+fi
+
+# Construir PATH final sin duplicados
+export PATH=$(IFS=':' ; echo "${_PATH_COMPONENTS[*]}:$PATH" | tr ':' '\n' | awk '!a[$0]++' | paste -sd: -)
+
+# Limpiar variables temporales
+unset _PATH_COMPONENTS
+
+# Inicializar PyEnv después de exportar PATH (para que pyenv esté disponible)
+if [[ -d "$HOME/.pyenv" ]] && command -v pyenv &>/dev/null; then
+    eval "$(pyenv init -)"
+fi
+
+# ============================================================================
+# CONFIGURACIÓN DE SHELLS ESPECÍFICOS
+# ============================================================================
+
+# Oh-My-Bash (si bash es el shell actual)
+if [[ "$SHELL" == *"bash"* ]]; then
+    export OSH="${XDG_DATA_HOME:-$HOME/.local/share}/repositories/oh-my-bash"
+fi
+
+# Oh-My-Zsh (si zsh es el shell actual)
+if [[ "$SHELL" == *"zsh"* ]]; then
+    export ZSH="${XDG_DATA_HOME:-$HOME/.local/share}/repositories/oh-my-zsh"
+    export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+fi
+
+# ============================================================================
+# CONFIGURACIÓN DE CLAVES API
+# ============================================================================
+if [[ -f "$DOTFILES_DIR/src/config/keys" ]]; then
+    source "$DOTFILES_DIR/src/config/keys"
+fi
