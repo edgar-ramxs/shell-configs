@@ -206,7 +206,12 @@ shell-configs/
 │   │   ├── library.sh             # Librería compartida (reutilizable)
 │   │   ├── exports                # Variables de entorno
 │   │   ├── aliases                # Alias de shell
-│   │   └── functions              # Funciones ligeras
+│   │   ├── functions              # Funciones ligeras
+│   │   ├── editing                # Aliases para editar configs (window managers)
+│   │   ├── cmd/
+│   │   │   ├── cmd.arch.aliases   # Aliases específicos de Arch
+│   │   │   ├── cmd.debian.aliases # Aliases específicos de Debian/Ubuntu
+│   │   │   └── cmd.fedora.aliases # Aliases específicos de Fedora
 │   │
 │   ├── home/
 │   │   ├── .profile               # Configuración de perfil
@@ -637,6 +642,10 @@ Restauración completa
 - ✅ Sistema de gestión de API keys:
   - `src/templates/keys.template` - Template con +50 variables
   - `src/config/keys` - Archivo privado (ignorado por git)
+- ✅ Variables SHELL_CONFIGS_DIR y DOTFILES_DIR actualizadas
+- ✅ Rutas actualizadas para usar SHELL_CONFIGS_DIR
+- ✅ Aliases específicos por distribución (cmd.*.aliases)
+- ✅ Sistema de carga centralizado en bashrc/zshrc
   - Importación automática en exports
 - ✅ dependencies.toml limpiado (eliminados duplicados, corregidas descripciones)
 - ✅ Rutas actualizadas (DEPS_FILE, SCRIPTS_DIR, DRAWS_DIR)

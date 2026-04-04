@@ -1,6 +1,25 @@
 # CHANGELOG.md - Historial de Cambios
 
-## [5.2.0] - 2026-04-03
+## [5.3.0] - 2026-04-04
+### Añadido
+- Aliases específicos por distribución en `src/config/cmd/`:
+  - `cmd.debian.aliases` - Aliases para Debian/Ubuntu (deb-*)
+  - `cmd.arch.aliases` - Aliases para Arch Linux (arch-*)
+  - `cmd.fedora.aliases` - Aliases para Fedora (fed-*)
+- Nuevo archivo `src/config/editing` con aliases para editar configs de window managers
+
+### Cambiado
+- **Centralización de carga**: La lógica de carga de aliases, functions y exports ahora está en `.bashrc` y `.zshrc` en lugar de `.profile`
+- **Variables refactorizadas**:
+  - `DOTFILES_DIR="${HOME}/.dotfiles"` - Directorio principal de dotfiles
+  - `SHELL_CONFIGS_DIR="${DOTFILES_DIR}/shell-configs"` - Submódulo de configs
+- `.profile` simplificado: ahora solo maneja XDG vars y sourcea los archivos RC
+- Rutas actualizadas en `exports`, `functions`, `editing` para usar `SHELL_CONFIGS_DIR`
+
+### Fixed
+- Corregido `src/config/functions`: ruta de fetchinfo ahora usa `SHELL_CONFIGS_DIR`
+- Corregido `src/config/exports`: PATH de scripts ahora usa `SHELL_CONFIGS_DIR`
+- Corregido `src/config/editing`: aliases de edición ahora apuntan a rutas correctas
 ### Añadido
 - Sistema de flags completo para setup.sh con gestión granular de dependencias:
   - `--shell <bash|zsh>` - Shell a configurar (default: bash)
