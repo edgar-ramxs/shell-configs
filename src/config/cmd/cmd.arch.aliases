@@ -1,0 +1,11 @@
+# Arch Linux (pacman + paru/yay helpers)
+alias arch-updating="sudo pacman -Syu"
+alias arch-updating-aur="paru -Syu"  # Requires paru or yay installed
+alias arch-cleaning="sudo pacman -Sc && sudo pacman -Qtdq | sudo pacman -Rns -"
+alias arch-cleaning-deep="sudo pacman -Scc && sudo pacman -Qtdq | sudo pacman -Rns -"
+alias arch-searching="pacman -Ss"
+alias arch-pkg-info="pacman -Si"
+alias arch-pkg-list="pacman -Qe"
+alias arch-pkg-list-orphans="pacman -Qtdq"
+alias arch-pkg-remove="sudo pacman -R"
+alias arch-pkg-purge="sudo pacman -Rns"

@@ -5,8 +5,7 @@
 #    ███████╗██╔╝ ██╗██║     ╚██████╔╝██║  ██║   ██║   ███████║
 #    ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
 
-# Directorio de dotfiles shell-configs
-export DOTFILES_DIR="${HOME}/.dotfiles/shell-configs"
+
 
 # ============================================================================
 # DETECCIÓN DE APLICACIONES PREDETERMINADAS
@@ -210,3 +209,18 @@ fi
 if [[ -f "$DOTFILES_DIR/src/config/keys" ]]; then
     source "$DOTFILES_DIR/src/config/keys"
 fi
+
+# XDG Base Directory Support
+export IPYTHONDIR="$HOME/.config/ipython"
+export JUPYTER_CONFIG_DIR="$HOME/.config/jupyter"
+export NPM_CONFIG_USERCONFIG="$HOME/.config/npm/npmrc"
+export DOTNET_CLI_HOME="$HOME/.local/share/dotnet"
+export MPLAYER_HOME="$HOME/.config/mplayer"
+export PYENV_ROOT="$HOME/.local/share/pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+export WGETRC="$HOME/.config/wgetrc"
+export VIMINIT='source $HOME/.config/vim/vimrc'
+export CLAUDE_CONFIG_DIR="$XDG_CONFIG_HOME/claude"
+export GEMINI_CONFIG_DIR="$XDG_CONFIG_HOME/gemini" 
+export CODEX_HOME="$XDG_CONFIG_HOME/codex"
+export BUN_CONFIG_DIR="$HOME/.config/bun"

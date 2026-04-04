@@ -13,14 +13,14 @@
 # AI PROVIDERS
 # ═══════════════════════════════════════════════════════════════════════════
 
-export ANTHROPIC_API_KEY=""              # Anthropic (Claude)
-export OPENAI_API_KEY=""                 # OpenAI (GPT)
+export ANTHROPIC_API_KEY=""               # Anthropic (Claude)
+export OPENAI_API_KEY=""                  # OpenAI (GPT)
 export GOOGLE_API_KEY=""                  # Google AI (Gemini)
 export GROQ_API_KEY=""                    # Groq
 export MISTRAL_API_KEY=""                 # Mistral AI
 export OPENROUTER_API_KEY=""              # OpenRouter (proxy multi-modelo)
 export REPLICATE_API_KEY=""               # Replicate
-export COHERE_API_KEY=""                 # Cohere
+export COHERE_API_KEY=""                  # Cohere
 export HUGGINGFACE_API_KEY=""             # Hugging Face
 export TOGETHER_API_KEY=""                # Together AI
 
@@ -28,7 +28,7 @@ export TOGETHER_API_KEY=""                # Together AI
 # CLOUD PROVIDERS
 # ═══════════════════════════════════════════════════════════════════════════
 
-export AWS_ACCESS_KEY_ID=""              # AWS
+export AWS_ACCESS_KEY_ID=""               # AWS
 export AWS_SECRET_ACCESS_KEY=""
 export AWS_REGION="us-east-1"
 export AZURE_OPENAI_API_KEY=""            # Azure OpenAI

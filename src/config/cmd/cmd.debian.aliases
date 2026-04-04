@@ -1,0 +1,10 @@
+# Debian/Ubuntu (apt + nala helper)
+alias deb-updating="sudo apt update && sudo apt upgrade -y"
+alias deb-updating-full="sudo apt update && sudo apt full-upgrade -y"
+alias deb-cleaning="sudo apt autoremove -y && sudo apt autoclean"
+alias deb-searching="apt search"
+alias deb-pkg-info="apt show"
+alias deb-pkg-list="apt list --installed"
+alias deb-pkg-remove="sudo apt remove"
+alias deb-pkg-purge="sudo apt purge"
+alias deb-fix-dpkg="sudo dpkg --configure -a && sudo apt --fix-broken install -y"

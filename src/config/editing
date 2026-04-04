@@ -1,0 +1,10 @@
+# edit config variables files
+alias rcfg-aliases="$EDITOR $XDG_CONFIG_HOME/shell-configs/aliases"
+alias rcfg-exports="$EDITOR $XDG_CONFIG_HOME/shell-configs/exports"
+alias rcfg-functions="$EDITOR $XDG_CONFIG_HOME/shell-configs/functions"
+
+# edit config tilling windows manager
+alias rcfg-sxhkd="$EDITOR $XDG_CONFIG_HOME/sxhkd/sxhkdrc"
+alias rcfg-bspwm="$EDITOR $XDG_CONFIG_HOME/bspwm/bspwmrc"
+alias rcfg-kitty="$EDITOR $XDG_CONFIG_HOME/kitty/kitty.conf"
+alias rcfg-polybar="$EDITOR $XDG_CONFIG_HOME/polybar/config.ini"

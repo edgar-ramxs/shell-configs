@@ -1,0 +1,9 @@
+# Fedora (dnf)
+alias fed-updating="sudo dnf update -y"
+alias fed-updating-all="sudo dnf upgrade -y"
+alias fed-cleaning="sudo dnf autoremove -y && sudo dnf clean all"
+alias fed-searching="dnf search"
+alias fed-pkg-info="dnf info"
+alias fed-pkg-list="dnf list installed"
+alias fed-pkg-remove="sudo dnf remove"
+alias fed-pkg-purge="sudo dnf remove"  # dnf remove handles dependencies

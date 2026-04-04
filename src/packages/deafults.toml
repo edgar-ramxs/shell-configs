@@ -1,0 +1,24 @@
+# ============================================================================
+# Shell Config - Paquetes por Defecto
+# ============================================================================
+# Formato: TOML para gestión de paquetes por defecto
+# ============================================================================
+
+[defaults]
+packages = [
+    { name = "awk", description = "Pattern scanning and processing language" },
+    { name = "lsd", description = "Modern ls replacement" },
+    { name = "bat", description = "Better cat with syntax highlighting" },
+    { name = "vim", description = "Text editor" },
+    { name = "xclip", description = "Command line clipboard tool" },
+    { name = "mpstat", description = "CPU usage monitoring tool" },
+    { name = "grep", description = "Pattern searching utility" },
+    { name = "sed", description = "Stream editor" },
+    { name = "tar", description = "Archive utility" },
+    { name = "git", description = "Version control system" },
+    { name = "jq", description = "JSON processor" },
+    { name = "curl", description = "Data transfer utility" },
+    { name = "wget", description = "File download utility" },
+    { name = "tree", description = "Directory tree viewer" },
+    { name = "nano", description = "Simple text editor" },
+]
