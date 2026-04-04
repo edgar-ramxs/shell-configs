@@ -1,7 +1,7 @@
 # edit config variables files
-alias rcfg-aliases="$EDITOR $XDG_CONFIG_HOME/shell-configs/aliases"
-alias rcfg-exports="$EDITOR $XDG_CONFIG_HOME/shell-configs/exports"
-alias rcfg-functions="$EDITOR $XDG_CONFIG_HOME/shell-configs/functions"
+alias rcfg-aliases="$EDITOR $SHELL_CONFIGS_DIR/src/config/aliases"
+alias rcfg-exports="$EDITOR $SHELL_CONFIGS_DIR/src/config/exports"
+alias rcfg-functions="$EDITOR $SHELL_CONFIGS_DIR/src/config/functions"
 
 # edit config tilling windows manager
 alias rcfg-sxhkd="$EDITOR $XDG_CONFIG_HOME/sxhkd/sxhkdrc"

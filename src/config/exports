@@ -176,8 +176,8 @@ if [[ -d "$HOME/.docker/bin" ]]; then
 fi
 
 # Agregar scripts de shell-configs al PATH
-if [[ -d "$DOTFILES_DIR/src/bin/scripts" ]]; then
-    _PATH_COMPONENTS+=("$DOTFILES_DIR/src/bin/scripts")
+if [[ -d "$SHELL_CONFIGS_DIR/src/bin/scripts" ]]; then
+    _PATH_COMPONENTS+=("$SHELL_CONFIGS_DIR/src/bin/scripts")
 fi
 
 # Construir PATH final sin duplicados
