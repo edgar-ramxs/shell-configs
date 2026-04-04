@@ -258,7 +258,7 @@ check_linux_dependencies() {
         return 0
     fi
 
-    _lib_check_packages_array "$DISTRO" deps MISSING_PKGS
+    _lib_check_packages_array "$DISTRO" deps MISSING_PKGS || true
 }
 
 install_core_dependencies() {
