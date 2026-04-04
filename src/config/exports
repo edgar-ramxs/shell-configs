@@ -5,6 +5,9 @@
 #    ███████╗██╔╝ ██╗██║     ╚██████╔╝██║  ██║   ██║   ███████║
 #    ╚══════╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝
 
+export DOTFILES_DIR="${HOME}/.dotfiles"
+export SHELL_CONFIGS_DIR="${DOTFILES_DIR}/shell-configs"
+
 
 
 # ============================================================================
@@ -206,8 +209,8 @@ fi
 # ============================================================================
 # CONFIGURACIÓN DE CLAVES API
 # ============================================================================
-if [[ -f "$DOTFILES_DIR/src/config/keys" ]]; then
-    source "$DOTFILES_DIR/src/config/keys"
+if [[ -f "$SHELL_CONFIGS_DIR/src/config/keys" ]]; then
+    source "$SHELL_CONFIGS_DIR/src/config/keys"
 fi
 
 # XDG Base Directory Support

@@ -5,15 +5,29 @@
 #  ██╗███████╗███████║██║  ██║██║  ██║╚██████╗
 #  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝
 
-DOTFILES_DIR="${HOME}/.dotfiles/shell-configs"
+DOTFILES_DIR="${HOME}/.dotfiles"
+SHELL_CONFIGS_DIR="${DOTFILES_DIR}/shell-configs"
 
 if [[ -r "$HOME/.cache/shells-configs/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "$HOME/.cache/shells-configs/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-[ -f "$DOTFILES_DIR/src/config/functions" ] && source "$DOTFILES_DIR/src/config/functions"
-[ -f "$DOTFILES_DIR/src/config/exports" ] && source "$DOTFILES_DIR/src/config/exports"
-[ -f "$DOTFILES_DIR/src/config/aliases" ] && source "$DOTFILES_DIR/src/config/aliases"
+[ -f "$SHELL_CONFIGS_DIR/src/config/functions" ] && source "$SHELL_CONFIGS_DIR/src/config/functions"
+[ -f "$SHELL_CONFIGS_DIR/src/config/exports" ] && source "$SHELL_CONFIGS_DIR/src/config/exports"
+[ -f "$SHELL_CONFIGS_DIR/src/config/aliases" ] && source "$SHELL_CONFIGS_DIR/src/config/aliases"
+
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "${ID_LIKE:-$ID}" in
+        *debian*|*ubuntu*)  _d="debian" ;;
+        *arch*)             _d="arch"   ;;
+        *fedora*|*rhel*)    _d="fedora" ;;
+        *)                  _d="$ID"    ;;
+    esac
+    [ -f "$SHELL_CONFIGS_DIR/src/config/cmd/cmd.${_d}.aliases" ] && \
+        source "$SHELL_CONFIGS_DIR/src/config/cmd/cmd.${_d}.aliases"
+    unset _d
+fi
 
 export HISTFILE="$HOME/.cache/shells-configs/zsh_history"
 mkdir -p "$(dirname "$HISTFILE")"

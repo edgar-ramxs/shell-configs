@@ -7,6 +7,26 @@
 
 [[ $- != *i* ]] && return
 
+DOTFILES_DIR="${HOME}/.dotfiles"
+SHELL_CONFIGS_DIR="${DOTFILES_DIR}/shell-configs"
+
+[ -f "$SHELL_CONFIGS_DIR/src/config/functions" ] && source "$SHELL_CONFIGS_DIR/src/config/functions"
+[ -f "$SHELL_CONFIGS_DIR/src/config/exports" ] && source "$SHELL_CONFIGS_DIR/src/config/exports"
+[ -f "$SHELL_CONFIGS_DIR/src/config/aliases" ] && source "$SHELL_CONFIGS_DIR/src/config/aliases"
+
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    case "${ID_LIKE:-$ID}" in
+        *debian*|*ubuntu*)  _d="debian" ;;
+        *arch*)             _d="arch"   ;;
+        *fedora*|*rhel*)    _d="fedora" ;;
+        *)                  _d="$ID"    ;;
+    esac
+    [ -f "$SHELL_CONFIGS_DIR/src/config/cmd/cmd.${_d}.aliases" ] && \
+        source "$SHELL_CONFIGS_DIR/src/config/cmd/cmd.${_d}.aliases"
+    unset _d
+fi
+
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
 shopt -s histappend
