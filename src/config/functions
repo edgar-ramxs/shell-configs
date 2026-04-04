@@ -180,13 +180,19 @@ function fetch() {
     # 2. Intentar con fetchs caseros en src/bin/fetchinfo/
     local custom_fetch_dir="${SHELL_CONFIGS_DIR}/src/bin/fetchinfo"
     if [[ -d "$custom_fetch_dir" ]]; then
-        # Intentar en orden de preferencia
-        for f in "fetching.sh" "zfetch.sh" "sysfetch.sh"; do
-            if [[ -f "${custom_fetch_dir}/$f" ]]; then
-                bash "${custom_fetch_dir}/$f" "$@"
-                return 0
-            fi
-        done
+        # Obtener todos los archivos .sh disponibles
+        local -a fetch_scripts=()
+        while IFS= read -r -d '' f; do
+            fetch_scripts+=("$f")
+        done < <(find "$custom_fetch_dir" -maxdepth 1 -name "*.sh" -type f -print0)
+        
+        if [[ ${#fetch_scripts[@]} -gt 0 ]]; then
+            # Seleccionar aleatoriamente
+            local random_index=$((RANDOM % ${#fetch_scripts[@]}))
+            local random_script="${fetch_scripts[$random_index]}"
+            bash "$random_script" "$@"
+            return 0
+        fi
     fi
 
     _lib_message -error "No se encontró ningún comando de 'fetch'. Instala 'fastfetch' o 'neofetch'."
