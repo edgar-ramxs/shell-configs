@@ -397,7 +397,7 @@ tar -xzf ~/.config/shell/backups/shell-backup-*.tar.gz -C ~
 
 # 4. Si falla totalmente, copiar archivos manualmente
 cd ~/.dotfiles/shell-configs
-cp src/config/library.sh ~/.config/shell/
+cp src/lib/library.sh ~/.config/shell/
 cp src/config/functions ~/.config/shell/
 ```
 

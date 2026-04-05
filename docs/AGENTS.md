@@ -1,6 +1,6 @@
 # AGENTS.md - Guía Completa del Proyecto Shell-Configs
 
-**Última Actualización:** 3 de abril de 2026  
+**Última Actualización:** 5 de abril de 2026  
 **Status:** Production Ready ✅  
 **Mantener Actualizado:** Después de cada cambio importante
 
@@ -94,7 +94,7 @@
 - Manejo de errores robusto
 - Instalación de enlaces simbólicos
 
-**src/config/library.sh** (reutilizable)
+**src/lib/library.sh** (reutilizable)
 - Funciones compartidas
 - `message()` - Output formateado con colores
 - `lazy_load_function()` - Lazy loading

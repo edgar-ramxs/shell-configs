@@ -7,7 +7,7 @@
 
 # Obtener la ruta del directorio que contiene este archivo (Bash/Zsh compatible)
 _FUNCTIONS_DIR_VAL="$(cd "$(dirname "${BASH_SOURCE[0]:-${(%):-%x}}")" && pwd)"
-[ -f "$_FUNCTIONS_DIR_VAL/library.sh" ] && source "$_FUNCTIONS_DIR_VAL/library.sh"
+[ -f "$_FUNCTIONS_DIR_VAL/../lib/library.sh" ] && source "$_FUNCTIONS_DIR_VAL/../lib/library.sh"
 unset _FUNCTIONS_DIR_VAL
 
 

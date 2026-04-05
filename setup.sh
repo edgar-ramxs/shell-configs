@@ -49,7 +49,7 @@ INSTALL_ALL=false
 DRY_RUN=false
 VERBOSE=false
 
-if ! source "${CONFIG_DIR}/library.sh"; then
+if ! source "${SCRIPT_DIR}/src/lib/library.sh"; then
     echo "Error: No se pudo cargar la librería compartida"
     exit 1
 fi

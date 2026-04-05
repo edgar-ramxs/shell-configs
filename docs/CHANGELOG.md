@@ -1,5 +1,10 @@
 # CHANGELOG.md - Historial de Cambios
 
+## [5.4.0] - 2026-04-05
+### Cambiado
+- Reestructuración de directorios: `library.sh` movido de `src/config/library.sh` a `src/lib/library.sh`
+- Actualizadas referencias en `setup.sh` y `src/config/functions` para apuntar a nueva ubicación
+
 ## [5.3.0] - 2026-04-04
 ### Añadido
 - Aliases específicos por distribución en `src/config/cmd/`:
